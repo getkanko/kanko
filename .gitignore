@@ -4,3 +4,6 @@ node_modules/
 *.vsix
 .vscode-test/
 docs/verification
+editor-extension/dist/
+editor-extension/.test-dist/
+__pycache__/
