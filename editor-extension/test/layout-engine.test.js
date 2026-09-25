@@ -1,6 +1,6 @@
 "use strict";
 const test = require('node:test'), assert = require('node:assert/strict');
-const { SHAPES, geometry, cramped, shapeFor } = require("./compiled.js")("lib/layout-model.js");
+const { SHAPES, geometry, cramped, shapeFor } = require("./compiled.js")("src/host/layout-model.js");
 const { createLayoutEngine } = require("./compiled.js")("lib/layout-engine.js");
 function fixture({cap=3,orientation='stacked',diff=false,storage}={}) {
   let layout=structuredClone(SHAPES.single.layout), current=1;
@@ -72,7 +72,7 @@ test('reset clears tour pins and customization but preserves role preferences an
 
 function memory() {
   const values = new Map();
-  return require("./compiled.js")("lib/layout-state.js").createLayoutState({get:k=>values.get(k),update:async(k,v)=>values.set(k,structuredClone(v))});
+  return require("./compiled.js")("src/host/layout-state.js").createLayoutState({get:k=>values.get(k),update:async(k,v)=>values.set(k,structuredClone(v))});
 }
 test('initial Following fills an empty persisted arrangement without toggling modes', async()=>{
   const storage=memory(), previous=fixture({storage});
