@@ -67,12 +67,8 @@ cd kanko
 ./install.sh
 ```
 
-`install.sh` requires Node.js 22 or newer, npm, Python 3.9 or newer, and `code`
-on PATH. It installs the locked build dependencies (including development tools),
-rebuilds and validates the VSIX from the current checkout, then installs it and
-prints agent setup instructions. Each run replaces any existing same-version
-VSIX so local CSS and script changes are included. Sidebar styles ship in the
-extension and require no runtime downloads.
+`install.sh` verifies `node` and `code` are present, installs the packaged
+extension, and then configures whichever agents it detects.
 
 To rebuild the VSIX from the repository root:
 
@@ -83,7 +79,14 @@ To rebuild the VSIX from the repository root:
 This requires Node.js 22 or newer, npm, and Python 3.9 or newer. It installs
 locked dependencies, checks release metadata, rebuilds and validates the VSIX,
 and prints its absolute path. The filename follows the package name and version
-in `editor-extension/package.json`, currently `editor-extension/kanko-0.1.1-rc1.vsix`.
+in root `plugin.json`; the output is `editor-extension/kanko-<version>.vsix`.
+The extension, MCP runtime, and Claude/Codex plugins share that release version.
+To prepare a release, add notes under `## Unreleased` in
+`editor-extension/CHANGELOG.md`, then run `node scripts/version.js bump patch`
+(or `minor`, `major`, or an explicit version). Required manifest copies and the
+checked-in runtime are updated together. See the
+[release procedure](docs/extension-publication.md#release-procedure) for checks
+and publishing with a `vX.Y.Z` tag.
 It replaces that version's existing package without publishing or installing it.
 From `editor-extension`, the same command is available as `npm run rebuild:vsix`.
 
@@ -165,21 +168,11 @@ To implement a change and keep its decisions and evidence, ask in plain language
 - "Implement this change and maintain change notes"
 - "Use `$kanko-build` to build this feature"
 
-The `kanko-build` skill supports substantial implementation, fix, refactor,
-and migration work. Review maps default to off. Explicitly invoking
-`$kanko-build` enables review maps for that session without another confirmation.
-When automatically loaded for a non-trivial request, the skill offers to create
-a map and continues coding while awaiting your answer. You can also opt in for
-a task with "create a review map" or "implement this and prepare its review map."
-With capture enabled, it records sourced requirements and material decisions,
-then binds final claims, code references, and evidence to the stable
-working-tree candidate. It never marks its own work as human-reviewed.
-
-Non-trivial tour UX or structural changes also require an agent-run QA round
-in an isolated virtual VS Code instance, whether review maps are enabled or
-not. The agent exercises the changed tour, captures and inspects screenshots,
-and presents those screenshots with the completion report. If native editor
-or screenshot tooling is blocked, visual QA remains explicitly incomplete.
+The `kanko-build` skill activates for substantial implementation,
+fix, refactor, and migration work. It records sourced requirements and material
+decisions during development, then binds final claims, code references, and
+evidence to the stable working-tree candidate. It never marks its own work as
+human-reviewed.
 
 For the later ownership walkthrough, ask:
 
@@ -187,18 +180,6 @@ For the later ownership walkthrough, ask:
 - "walk me through this diff"
 - "tour the branch head diff against main"
 - "guide me through what changed in the last three commits"
-
-Before a new tour, the agent offers a short questionnaire about the actual
-problem, relevant concepts, subsystem familiarity, and review goal. Answers
-shape the explanation: a domain expert new to the repository still gets the
-local flow, while familiar concept lessons can be shortened. You can skip the
-questionnaire, ask for more or less detail, or skip reasoning prompts. Material
-claims, risks, evidence, and limitations remain part of review coverage.
-
-Stops are organized around review questions and the understanding needed to
-answer them. This is a workflow prototype using the existing v2 presentation;
-familiarity stays in the session, with no automatic saved reviewer profile.
-See the [learning model, research, and pilot procedure](docs/tour-learning-model.md).
 
 The `kanko-tour` skill opens the prepared review map when one exists. If coding
 happened without change notes, it reconstructs a draft from the selected
