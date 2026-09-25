@@ -11,12 +11,42 @@ const lock = JSON.parse(read("editor-extension/package-lock.json"));
 
 const numeric = "(?:0|[1-9]\\d*)";
 const prereleaseIdentifier = `(?:${numeric}|\\d*[A-Za-z-][0-9A-Za-z-]*)`;
-const releaseVersion = new RegExp(`^${numeric}\\.${numeric}\\.${numeric}(?:-${prereleaseIdentifier}(?:\\.${prereleaseIdentifier})*)?$`);
-assert.match(manifest.version, releaseVersion, "Use a major.minor.patch version with an optional SemVer prerelease suffix");
-assert.equal(lock.version, manifest.version, "Lockfile version differs from manifest");
-assert.equal(lock.packages[""].version, manifest.version, "Lockfile root version differs from manifest");
-assert.equal(read("editor-extension/LICENSE"), read("LICENSE"), "Packaged license differs from repository license");
-assert.ok(read("editor-extension/CHANGELOG.md").split(/\r?\n/).includes(`## ${manifest.version}`), "Add a changelog heading for the release version");
+const releaseVersion = new RegExp(
+  `^${numeric}\\.${numeric}\\.${numeric}(?:-${prereleaseIdentifier}(?:\\.${prereleaseIdentifier})*)?$`,
+);
+assert.match(
+  manifest.version,
+  releaseVersion,
+  "Use a major.minor.patch version with an optional SemVer prerelease suffix",
+);
+assert.equal(
+  lock.version,
+  manifest.version,
+  "Lockfile version differs from manifest",
+);
+assert.equal(
+  lock.packages[""].version,
+  manifest.version,
+  "Lockfile root version differs from manifest",
+);
+assert.equal(
+  read("editor-extension/LICENSE"),
+  read("LICENSE"),
+  "Packaged license differs from repository license",
+);
+assert.ok(
+  read("editor-extension/CHANGELOG.md")
+    .split(/\r?\n/)
+    .includes(`## ${manifest.version}`),
+  "Add a changelog heading for the release version",
+);
 const tag = process.argv[2];
-if (tag !== undefined) assert.equal(tag, `extension-v${manifest.version}`, "Release tag must match the extension version");
-console.log(`Validated ${manifest.publisher}.${manifest.name} ${manifest.version}`);
+if (tag !== undefined)
+  assert.equal(
+    tag,
+    `extension-v${manifest.version}`,
+    "Release tag must match the extension version",
+  );
+console.log(
+  `Validated ${manifest.publisher}.${manifest.name} ${manifest.version}`,
+);
