@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Keep sidebar anchor chips and fonts visible when host theme values are missing.
+- Rebuild and validate current extension assets on every local install, including
+  development packaging tools under production npm settings.
+
 ## 0.1.0
 
 - Initial Kankō extension release under the `getkankodev.kanko` identity.

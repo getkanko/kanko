@@ -1,14 +1,70 @@
 ---
 name: kanko-build
-description: Implement a non-trivial code change from a request, issue, or specification while maintaining a review map connecting requirements, decisions, assumptions, risks, evidence, and final handoff context. Use for substantial implementation, fix, refactor, or migration work that should later receive an ownership walkthrough. Do not use for read-only review/explanation, trivial edits, or when the user opts out of preparing a review map.
+description: Implement a non-trivial code change from a request, issue, or specification. Explicit invocation enables review maps for the session. When automatically loaded for substantial implementation, fix, refactor, or migration work, offer an optional review map connecting requirements, decisions, risks, evidence, and handoff context; maps otherwise default to off. Do not use for read-only review/explanation or trivial edits.
 ---
 
 # Kankō Build
 
-Implement the requested change and prepare its review map for a later
-walkthrough. Connect requirements, code, decisions, and evidence, with change
-notes explaining the choices. Keep the map selective; it is not a transcript,
-a replacement for tests, or permission to expand scope.
+Implement the requested change. Review maps are **off by default**.
+
+## Offer optional review map capture
+
+When this skill is automatically loaded and the request is non-trivial, briefly
+offer to create a review map for a later walkthrough, unless capture is already
+enabled for the session or the user has accepted or declined capture for this
+task. Continue authorized implementation while waiting for an answer. Silence
+leaves review maps off; do not block the coding task or repeat the offer.
+
+Create or maintain a review map only after explicit opt-in. Explicitly invoking
+`kanko-build` (for example, "Use $kanko-build to build this feature") is itself
+opt-in and enables review maps for that session; proceed without another offer
+or confirmation. A request such as "implement this and prepare a review map"
+also authorizes capture for that task. Automatic skill loading, task complexity,
+and an existing map do not enable capture. Honor earlier session or task opt-in
+without asking again, and stop capture if the user opts out.
+
+Until the user opts in, skip all review map tools and the capture, freeze, and
+ownership-handoff steps below. Complete the implementation, ordinary
+verification, and any required tour QA, then report the changes and results
+without review map artifacts.
+
+## Required tour QA
+
+Every non-trivial UX or structural change to the tour process automatically
+requires a QA round in a virtual VS Code instance. This requirement applies
+even when review maps are off. Execute it yourself or delegate it to another
+AI agent; do not ask the user to run the QA round.
+
+- Launch the current extension candidate in an isolated VS Code development
+  host with a virtual display and disposable workspace/profile. Use the
+  [native tour fixture and integration runner](../../editor-extension/test/integration/runner.js)
+  or [interactive fixture host](../../editor-extension/test/integration/manual-host.js)
+  as appropriate. Disposable fixture state does not enable review map capture
+  for the user's implementation task.
+- Load a source-backed tour and exercise the changed interaction and relevant
+  transitions through the actual editor UI. For a loading fix, verify the first
+  stop and beat immediately after load without workaround clicks. For layout
+  or progress changes, cover the affected layouts, stop/beat transitions, and
+  readable sidebar states.
+- Capture screenshots of the resulting VS Code tour states, then inspect them
+  for the intended behavior and visual regressions. Keep the captures in a
+  task-specific verification directory, with concise scenario captions and the
+  candidate/version tested. Tests, snapshots, mockups, and browser-only webview
+  renders do not substitute for screenshots of the running editor.
+- Fix QA findings and rerun the affected scenarios on the final candidate.
+  Present the screenshots in the completion response using inline images or
+  clickable image attachments, with captions explaining what each verifies;
+  do not merely mention that screenshots exist.
+
+If the editor or capture tooling cannot run, investigate a workable native
+virtual-editor setup. If still blocked, report the concrete blocker and the
+missing scenarios and screenshots. Keep visual QA explicitly incomplete and
+do not claim the UX or structural change is fully verified.
+
+The remaining workflow applies only when review map capture is enabled. Connect
+requirements, code, decisions, and evidence, with change notes explaining the
+choices. Keep the map selective; it is not a transcript, a replacement for
+tests, or permission to expand scope.
 
 ## Start the task
 
@@ -17,7 +73,7 @@ before proposing durable review map content. Resolve the absolute Git repository
 root and inspect the current status so pre-existing user changes remain visible
 and untouched.
 
-Open a working-tree review map with `kanko_map_open`:
+After explicit opt-in, open a working-tree review map with `kanko_map_open`:
 
 - Use baseline `HEAD` and explicitly include staged, unstaged, and untracked
   content unless the user's requested scope says otherwise.

@@ -15,10 +15,10 @@ fi
 
 vsix="$root/editor-extension/$(node -p "const p = require(process.argv[1]); p.name + '-' + p.version + '.vsix'" "$root/editor-extension/package.json")"
 
-if [ ! -f "$vsix" ]; then
-  echo "building the extension..."
-  (cd "$root/editor-extension" && npm ci --silent && npm run package --silent)
-fi
+# Build from this checkout every time, including local styles and scripts.
+# An existing same-version VSIX may have been packaged before the latest edits.
+echo "building the extension..."
+bash "$root/scripts/build-vsix.sh"
 
 echo "installing the VS Code extension..."
 code --install-extension "$vsix" --force

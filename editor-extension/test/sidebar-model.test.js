@@ -9,6 +9,16 @@ test('all stop anchors retain identity across beats, including unopened and inac
   assert.equal(first.length,9);assert.deepEqual(first.map(r=>r.n),next.map(r=>r.n));assert.equal(first[0].slot,'top');assert.equal(first[0].pinned,true);assert.equal(first[8].status,'not-open');assert.equal(next[0].active,false);assert.equal(next[4].active,true);
   assert.deepEqual(new Set(first.map(r=>r.role)),new Set(Object.keys(model.roles)));
 });
+test('beat references and editor visibility have independent text labels',()=>{
+  const s=snapshot(4,[1,3,4]);s.presentation.anchors=[{n:3,status:'open'},{n:4,status:'not-open'}];
+  const rows=model.rows(s);
+  assert.equal(model.presentationLabel(rows[0]),'This beat · In view · top');
+  assert.equal(model.presentationLabel(rows[1]),'In view · bottom left');
+  assert.equal(model.presentationLabel(rows[2]),'This beat · Open in another tab');
+  assert.equal(model.presentationLabel(rows[3]),'This beat · Not open');
+  assert.equal(model.beatFiles(rows),'This beat: 1 · file-1.js, 3 · file-3.js, 4 · file-4.js');
+  assert.equal(model.beatFiles(model.rows(snapshot(1,[]))),'This beat: No files referenced');
+});
 test('compact stops stay ordered; larger stops put In view before every remaining role',()=>{
   assert.deepEqual(model.entries(model.rows(snapshot(3))).map(e=>e.row.n),[1,2,3]);
   const entries=model.entries(model.rows(snapshot(9)));assert.equal(entries[0].key,'view');

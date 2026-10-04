@@ -15,7 +15,7 @@ fi
 
 cd "$root/editor-extension"
 node "$root/scripts/check-extension-release.js"
-npm ci
+npm ci --include=dev
 npm run package
 
 vsix="$root/editor-extension/$(node -p "const p = require('./package.json'); p.name + '-' + p.version + '.vsix'")"

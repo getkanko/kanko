@@ -67,8 +67,12 @@ cd kanko
 ./install.sh
 ```
 
-`install.sh` verifies `node` and `code` are present, installs the packaged
-extension, and then configures whichever agents it detects.
+`install.sh` requires Node.js 22 or newer, npm, Python 3.9 or newer, and `code`
+on PATH. It installs the locked build dependencies (including development tools),
+rebuilds and validates the VSIX from the current checkout, then installs it and
+prints agent setup instructions. Each run replaces any existing same-version
+VSIX so local CSS and script changes are included. Sidebar styles ship in the
+extension and require no runtime downloads.
 
 To rebuild the VSIX from the repository root:
 
@@ -79,7 +83,7 @@ To rebuild the VSIX from the repository root:
 This requires Node.js 22 or newer, npm, and Python 3.9 or newer. It installs
 locked dependencies, checks release metadata, rebuilds and validates the VSIX,
 and prints its absolute path. The filename follows the package name and version
-in `editor-extension/package.json`, currently `editor-extension/kanko-0.1.0.vsix`.
+in `editor-extension/package.json`, currently `editor-extension/kanko-0.1.1.vsix`.
 It replaces that version's existing package without publishing or installing it.
 From `editor-extension`, the same command is available as `npm run rebuild:vsix`.
 
@@ -161,11 +165,21 @@ To implement a change and keep its decisions and evidence, ask in plain language
 - "Implement this change and maintain change notes"
 - "Use `$kanko-build` to build this feature"
 
-The `kanko-build` skill activates for substantial implementation,
-fix, refactor, and migration work. It records sourced requirements and material
-decisions during development, then binds final claims, code references, and
-evidence to the stable working-tree candidate. It never marks its own work as
-human-reviewed.
+The `kanko-build` skill supports substantial implementation, fix, refactor,
+and migration work. Review maps default to off. Explicitly invoking
+`$kanko-build` enables review maps for that session without another confirmation.
+When automatically loaded for a non-trivial request, the skill offers to create
+a map and continues coding while awaiting your answer. You can also opt in for
+a task with "create a review map" or "implement this and prepare its review map."
+With capture enabled, it records sourced requirements and material decisions,
+then binds final claims, code references, and evidence to the stable
+working-tree candidate. It never marks its own work as human-reviewed.
+
+Non-trivial tour UX or structural changes also require an agent-run QA round
+in an isolated virtual VS Code instance, whether review maps are enabled or
+not. The agent exercises the changed tour, captures and inspects screenshots,
+and presents those screenshots with the completion report. If native editor
+or screenshot tooling is blocked, visual QA remains explicitly incomplete.
 
 For the later ownership walkthrough, ask:
 

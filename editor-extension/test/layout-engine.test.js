@@ -74,6 +74,25 @@ function memory() {
   const values = new Map();
   return require('../lib/layout-state.js').createLayoutState({get:k=>values.get(k),update:async(k,v)=>values.set(k,structuredClone(v))});
 }
+test('initial Following fills an empty persisted arrangement without toggling modes', async()=>{
+  const storage=memory(), previous=fixture({storage});
+  // A tour interrupted after begin/cleanup can persist geometry before any
+  // anchors are placed. It is compatible storage, but not a presentation.
+  await previous.engine.begin(previous.state,previous.records);
+  await previous.engine.transaction(async()=>{});
+  const reloaded=fixture({storage});await reloaded.apply(1,2);
+  assert.deepEqual(reloaded.engine.snapshot().slots.map(s=>s.anchor),[1,2]);
+  assert.deepEqual(reloaded.engine.snapshot().unplaced,[]);
+});
+test('initial Following fills safe slots when saved anchors cannot be restored', async()=>{
+  const storage=memory(), previous=fixture({storage});await previous.apply(1);
+  const reloaded=fixture({storage});
+  await reloaded.vscode.commands.executeCommand('vscode.setEditorLayout',SHAPES.stack.layout);
+  reloaded.reviewerTab();const tab=reloaded.groups[0].activeTab;
+  await reloaded.apply(3);
+  assert.equal(reloaded.groups[0].activeTab,tab);
+  assert.equal(reloaded.groups[1].activeTab.input.uri.toString(),'head:3');
+});
 test('returning to a stop restores its resized arrangement and excludes a closed anchor', async()=>{
   const f=fixture({storage:memory()});await f.apply(1,2);f.resize();
   f.groups[1].tabs=[];f.groups[1].activeTab=undefined;await f.engine.observe();

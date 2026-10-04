@@ -3,6 +3,11 @@
 (function (root) {
   const roles = { change: "Changes", evidence: "Evidence", caller: "Callers", callee: "Callees", config: "Config", schema: "Schema", context: "Context" };
   const position = slot => slot ? slot.replace(/([A-Z])/g, " $1").toLowerCase().replace(/^group/, "group ") : "";
+  function presentationLabel(row) {
+    const location = row.slot ? `In view · ${row.slot}` : ({ open: "Open in another tab", stale: "Source changed", "not-open": "Not open", visible: "In view" })[row.status];
+    return `${row.active ? "This beat · " : ""}${location}`;
+  }
+  const beatFiles = rows => `This beat: ${rows.filter(r => r.active).map(r => `${r.n} · ${r.filename}`).join(", ") || "No files referenced"}`;
   function rows(snapshot) {
     const states = snapshot.presentation?.anchors || [], layout = snapshot.presentation?.layout || {};
     return snapshot.stop.anchors.map(a => {
@@ -30,6 +35,6 @@
     const visible = positioned.filter(e => e.top + e.height >= scrollTop - 136 && e.top <= scrollTop + height + 136);
     return { visible, before: visible[0]?.top || 0, after: visible.length ? top - visible.at(-1).top - visible.at(-1).height : top, total: top };
   }
-  const api = { roles, position, rows, entries, windowed };
+  const api = { roles, position, presentationLabel, beatFiles, rows, entries, windowed };
   if (typeof module !== "undefined") module.exports = api; else root.SidebarModel = api;
 })(typeof globalThis === "undefined" ? this : globalThis);

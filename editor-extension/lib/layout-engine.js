@@ -115,7 +115,10 @@ function createLayoutEngine(vscode, opener, storage = createLayoutState()) {
       activity.set(opened.tab, entry.lastActive); clock = Math.max(clock, entry.lastActive);
       if (entry.pinned) { pins.add(token(r)); pinnedTabs.add(opened.tab); }
     }
-    restored = true;
+    // Geometry alone is not a restored presentation. An interrupted load can
+    // save empty slots, or reviewer tabs can block every saved anchor. Let
+    // apply place the current beat in safe slots when nothing was restored.
+    restored = records.some(r => visible(r));
   }
   async function begin(nextState, nextRecords) {
     await observe();

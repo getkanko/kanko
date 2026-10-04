@@ -28,7 +28,7 @@ function roleIcon(role, decorative = false) {
 }
 function rowElement(row, showRoleIcon) {
   const wrapper = element("div", undefined, `anchor-row ${color(row.n)}${row.active ? " current-beat" : ""}${row.pinned ? " pinned" : ""}`);
-  wrapper.dataset.row = row.n; wrapper.setAttribute("aria-label", `Anchor ${row.n}: ${row.path}, ${row.role}${row.active ? ", current beat" : ""}`);
+  wrapper.dataset.row = row.n; wrapper.setAttribute("aria-label", `Anchor ${row.n}: ${row.path}, ${row.role}, ${model.presentationLabel(row)}`);
   const chip = button(String(row.n), `Anchor ${row.n}: ${row.path}`, { anchor: row.n }); chip.className = `chip ${color(row.n)}`;
   const identity = element("div", undefined, "identity");
   const name = element("div", undefined, "filename"); name.append(element("strong", row.filename));
@@ -50,7 +50,9 @@ function rowElement(row, showRoleIcon) {
     controls.append(button(row.status === "open" ? "Show ▾" : "Open ▾", `Open anchor ${row.n}: ${row.filename}`, { anchor: row.n }));
   }
   for (const control of controls.querySelectorAll("button")) control.disabled = snapshot.mode === "paused";
-  chip.disabled = snapshot.mode === "paused"; wrapper.append(chip, identity, controls); return wrapper;
+  const state = element("div", model.presentationLabel(row), "details presentation-status");
+  state.title = model.presentationLabel(row);
+  chip.disabled = snapshot.mode === "paused"; wrapper.append(chip, identity, controls, state); return wrapper;
 }
 function renderList() {
   if (!snapshot?.loaded) return;
@@ -102,6 +104,7 @@ function renderPicker() {
     tile.className = "placement-tile";
     if (option.kind !== "peek") tile.append(diagram(option, row)); else tile.append(element("span", "↗", "peek-icon"));
     tile.append(element("span", label), element("small", option.kind === "peek" ? "Keep this layout" : model.position(slot?.slot)));
+    if (option.kind !== "peek") tile.append(element("small", `Filled cell = anchor ${row.n}`));
     tile.disabled = snapshot.mode === "paused"; choices.append(tile);
   }
   byId("remember-text").textContent = `Remember for ${row.role} anchors`;
@@ -133,17 +136,18 @@ window.addEventListener("message", ({ data }) => {
   const key = `${s.tourId}:${s.stop.id}`;
   if (key !== stopKey) { stopKey = key; collapsed = {}; pickerAnchor = null; byId("filter").value = ""; byId("anchor-list").scrollTop = 0; }
   rows = model.rows(s);
-  byId("position").textContent = `STOP ${s.stopIndex + 1} / ${s.stopCount}`;
-  byId("beat-position").textContent = `Beat ${s.beatIndex + 1} of ${s.beatCount}`;
+  byId("position").textContent = `Stop ${s.stopIndex + 1}/${s.stopCount}`;
+  byId("beat-position").textContent = `Beat ${s.beatIndex + 1} of ${s.beatCount} in this stop`;
   byId("risk").textContent = `${s.stop.risk} risk`; byId("stop-title").textContent = s.stop.title;
   const rev = s.stop.anchors[0].rev;
   byId("revisions").textContent = `${rev.base.slice(0, 7)} → ${rev.head.startsWith("WORKTREE:") ? "working snapshot" : rev.head.slice(0, 7)}`;
   for (const button of document.querySelectorAll("[data-mode]")) button.setAttribute("aria-pressed", String(button.dataset.mode === s.mode));
   byId("mode-help").textContent = { following: "Following the current beat.", exploring: "Explore freely. Your editor stays where you leave it.", paused: "Presentation paused. Resume with Following." }[s.mode];
   byId("file-count").textContent = `${rows.length} ${rows.length === 1 ? "anchor" : "anchors"} · ${rows.filter(r => r.slot).length} in view`;
+  byId("beat-files").textContent = model.beatFiles(rows);
   byId("guideline").hidden = rows.length <= 7; byId("list-tools").hidden = rows.length < 5;
   byId("anchor-list").hidden = rows.length === 1; byId("single-file").hidden = rows.length !== 1;
-  byId("single-file").textContent = rows.length === 1 ? `${rows[0].path}:${rows[0].context.startLine}–${rows[0].context.endLine} · ${rows[0].role}` : "";
+  byId("single-file").textContent = rows.length === 1 ? `${rows[0].path}:${rows[0].context.startLine}–${rows[0].context.endLine} · ${rows[0].role} · ${model.presentationLabel(rows[0])}` : "";
   byId("reset-layout").disabled = s.mode === "paused";
   renderList(); renderPicker();
   // Only extension-generated, escaped Markdown and numbered buttons enter here.
