@@ -169,10 +169,21 @@ implementation, support, contradiction, mitigation, dependency, or coverage.
 
 ## Prepare the ownership handoff
 
-Create a semantic tour plan with `CreateTourPlan`. Each stop should be one
-logical, commit-message-worthy unit and cover at least one review map entity unless
-it is explicitly a context stop. Order foundations before consumers and put
-real risk or weak evidence where the reviewer will encounter it.
+Create a provisional semantic tour plan with `CreateTourPlan`. Each stop should
+answer one coherent review question about a behavior, invariant, or design
+decision and cover at least one review map entity unless it is explicitly a
+context stop. Name it by its purpose, not its filenames. Include the question
+and intended understanding in the existing beat narration, with source-backed
+context for the relevant entry point, state owner, and behavioral flow.
+
+Use [the learning model](../../docs/tour-learning-model.md) to distinguish
+conceptual prerequisites from repository context. Prepare a concise default
+route when the reviewer's knowledge is unknown; do not invent familiarity
+ratings or interview the implementer as a substitute for the later reviewer.
+The `kanko-tour` workflow calibrates the explanation before review begins.
+Order prerequisites needed to understand each behavior before its details,
+and put real risk or weak evidence where the reviewer will encounter it.
+Keep material claim/evidence coverage independent of optional concept lessons.
 
 Use `presentationVersion: 2` and the required
 [stop, anchor, and beat contract](../../docs/kanko-v2-tour-model.md). Every stop

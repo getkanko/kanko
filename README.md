@@ -188,6 +188,18 @@ For the later ownership walkthrough, ask:
 - "tour the branch head diff against main"
 - "guide me through what changed in the last three commits"
 
+Before a new tour, the agent offers a short questionnaire about the actual
+problem, relevant concepts, subsystem familiarity, and review goal. Answers
+shape the explanation: a domain expert new to the repository still gets the
+local flow, while familiar concept lessons can be shortened. You can skip the
+questionnaire, ask for more or less detail, or skip reasoning prompts. Material
+claims, risks, evidence, and limitations remain part of review coverage.
+
+Stops are organized around review questions and the understanding needed to
+answer them. This is a workflow prototype using the existing v2 presentation;
+familiarity stays in the session, with no automatic saved reviewer profile.
+See the [learning model, research, and pilot procedure](docs/tour-learning-model.md).
+
 The `kanko-tour` skill opens the prepared review map when one exists. If coding
 happened without change notes, it reconstructs a draft from the selected
 diff and labels inferred rationale accordingly.

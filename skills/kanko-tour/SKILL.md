@@ -9,7 +9,9 @@ A large diff is hard to review cold. This skill plays the role of the engineer
 who wrote the change, walking the reviewer through it stop by stop the way
 they would in person — narrate, pause, take questions, move on. It explains
 and contextualizes rather than hunting for bugs as its primary job, though it
-flags real concerns when it sees them.
+flags real concerns when it sees them. Adapt the explanation to the reviewer's
+knowledge of the problem, relevant concepts, and repository so they can reason
+about the change rather than just follow its narration.
 
 ## Workflow
 
@@ -73,6 +75,43 @@ context a hunk alone won't show. Check recent commit messages on the range
 (`git log`) for stated intent. Skim any AGENTS.md/CLAUDE.md/module docs
 relevant to the touched paths so conventions are fresh before judging anything.
 
+### 2a. Calibrate the explanation
+
+After identifying the problem and relevant concepts, offer a short pre-tour
+questionnaire as one grouped exchange. Use the actual problem, subsystem, and
+up to three concepts from this change; do not ask the reviewer to invent topics.
+
+- **Problem familiarity:** need an introduction / understand the problem / know
+  its constraints and edge cases.
+- **Concept familiarity, for each named concept:** new to me / know the idea /
+  have applied it.
+- **Subsystem familiarity:** new to this code / know the main flow / have worked
+  on it.
+- **Review goal:** evaluate correctness / evaluate design / learn the
+  implementation. Allow a combined goal or a free-text answer.
+
+Read [the learning model](../../docs/tour-learning-model.md) when planning an
+adapted tour; it defines routing, a worked example, and the prototype's evidence
+and evaluation limits. Explain briefly that answers help skip familiar lessons
+while retaining the claims and evidence needed for review. Honor an explicit
+request to start immediately, existing session answers, or a supplied profile
+without repeating the questionnaire. Continue source inspection while waiting
+for answers. If the reviewer skips calibration or answers only part of it,
+treat unanswered dimensions as unknown: give a concise local orientation,
+offer prerequisite explanations, and adjust when they ask for more or less.
+Do not infer expertise from seniority, job title, or silence.
+
+Keep these dimensions independent. Concept expertise does not establish code
+familiarity. For a reviewer new to the subsystem, explain its relevant entry
+point, state owner, and control/data flow even when the domain lesson is skipped.
+Treat familiarity as provisional; make deeper explanation available throughout.
+On resume, reuse the session's answers and ask only about changed needs.
+
+Use calibration in this session; the v2 contract has no reviewer-profile store.
+Do not invent profile tools or put personal familiarity ratings into shared
+claims, evidence, or receipts. Save a reusable profile only when requested and
+an appropriate destination is available.
+
 ### 3. Prepare claims and group into stops
 
 For a new draft, use `kanko_map_apply` typed commands to record a concise thesis,
@@ -107,10 +146,25 @@ When authoring each stop:
 - Use `head` for added or unchanged files, `diff` for modified files, and `base` for deleted code. For renames use the destination path and the exact source pair. Keep context and focus ranges on their declared revision side.
 - Resolve validation errors before loading. Address warnings about broad stops, large active sets, and observed claims lacking their own evidence anchor; do not hide weak evidence by changing its truth status.
 
-A stop is one logical, commit-message-worthy change — not one file and not one
-hunk. A rename that touches five files is one stop. A file with two unrelated
-changes is two stops. Order stops so dependencies come first (e.g. a new type
-before the code that uses it) and related stops stay adjacent.
+A stop answers one coherent review question about a behavior, invariant, or
+design decision. Group related changes across files when they answer that
+question; split unrelated behaviors even when they share a file. Name stops by
+their purpose, such as "Reject stale navigation requests."
+
+For each stop, plan its review question, expected understanding, unfamiliar
+prerequisites, and why each context anchor is needed. Express the question and
+intended understanding concisely in beat narration using the existing v2
+fields; do not add unsupported learning/profile metadata. Start with the
+relevant behavioral flow, then order stops by the prerequisites this reviewer
+needs. A concrete failure scenario may precede a new type that fixes it. Keep
+related stops adjacent and expose material risks and weak evidence promptly.
+
+Adapt a build-prepared plan before starting the review session. Retain stable
+stop ids where their question and coverage remain the same. Shortening a
+familiar lesson must retain material claims, risks, evidence, and limitations;
+it never counts as reviewing them. For an active or resumed tour, expand or
+shorten explanation within its current source-backed beats; do not replace the
+plan merely to change depth or discard prior review history.
 
 Build the full stop list before narrating, then present a compact agenda: the
 problem and intended outcome, each stop's label and type, which stops are
@@ -119,8 +173,11 @@ stop's detail until you reach it.
 
 Stop types: `context`, `implementation`, `risk`, `evidence`, `limitation`.
 
-The visible agenda must come from the persisted tour plan. Begin with a compact
-review map briefing: thesis, claim dispositions, highest risks, evidence
+The visible agenda must come from the persisted tour plan. For a reviewer new
+to this code, begin with a concise orientation: the triggering behavior, relevant
+entry point and state owner, the flow through the affected components, and where
+the behavior changes. Cite unchanged context as well as the diff. Then give a
+compact review map briefing: thesis, claim dispositions, highest risks, evidence
 freshness, stop coverage, and which rationale is reconstructed. Start a review
 session with `kanko_map_apply` and keep its session ID.
 
@@ -150,7 +207,13 @@ and fall back to a seam with Peek removed code at capacity.
 Never call removed `tour_stop` or `tour_focus` tools or private editor commands.
 If the current bridge is unavailable, use a text tour with explicit citations.
 
-For each stop, cover:
+Lead each stop with its review question. For an unfamiliar concept, use a
+concrete input or failure trace, state the general rule or invariant it
+illustrates, then connect that rule to the implementation and its evidence.
+When a comparison helps, explicitly identify the shared structure and where
+the analogy stops applying. For a familiar concept, compress the lesson and
+focus on how this code implements it. These are planning responsibilities,
+not mandatory narration sections. For each stop, cover:
 - **What changed** — concise, not a restatement of the diff the reviewer can
   already see.
 - **Why** — inferred from commit messages, comments, or how it connects to
@@ -163,6 +226,13 @@ For each stop, cover:
   generated files, comment-discipline violations, missing regeneration step,
   deviation from established patterns nearby). Only raise it if it's actually
   there. Don't manufacture a concern to fill the section.
+
+At a significant conceptual boundary, offer an optional prediction or reasoning
+prompt, such as "What should happen if this revision changes before the request
+arrives?" Respect a request to skip prompts. If an answer reveals a gap, revisit
+the example or prerequisite; do not turn the tour into a compulsory exam.
+Neither a correct answer nor "next" establishes approval. Do not record prompts
+or answers as evidence that the implementation is correct.
 
 Then **stop and wait**. The reviewer may ask a question, ask for more depth,
 say "next", "back", or jump to a named stop. Don't advance without one of
