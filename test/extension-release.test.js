@@ -30,6 +30,26 @@ test("release validation accepts matching metadata and versioned tag", (t) => {
   assert.equal(f.run(`extension-v${f.version}`).status, 0);
 });
 
+test("release validation accepts stable and prerelease versions with exact metadata", (t) => {
+  const f = fixture(t);
+  for (const version of ["0.1.1", "0.1.1-rc1", "0.1.1-rc.1"]) {
+    f.write("editor-extension/package.json", JSON.stringify({ version }));
+    f.write("editor-extension/package-lock.json", JSON.stringify({ version, packages: { "": { version } } }));
+    f.write("editor-extension/CHANGELOG.md", `# Changelog\n\n## ${version}\n`);
+    assert.equal(f.run(`extension-v${version}`).status, 0);
+  }
+});
+
+test("release validation rejects malformed versions before accepting release metadata", (t) => {
+  const f = fixture(t);
+  for (const version of ["v0.1.1-rc1", "0.01.1", "0.1.1-", "0.1.1-rc..1", "0.1.1-rc.01"]) {
+    f.write("editor-extension/package.json", JSON.stringify({ version }));
+    const result = f.run();
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /optional SemVer prerelease suffix/);
+  }
+});
+
 test("release validation rejects unrelated or mismatched tags", (t) => {
   const f = fixture(t);
   for (const tag of ["main", `v${f.version}`, "extension-v999.0.0", "extension-v0.1.0-beta.1"]) {

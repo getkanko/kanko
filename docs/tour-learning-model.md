@@ -206,7 +206,7 @@ concept with unfamiliar code. Both retain the same claim coverage and
 claim-specific evidence anchor. This checks contract compatibility, not whether
 an agent reliably chooses the right route or whether a human learns faster.
 
-Native visual QA is incomplete. The cached VS Code 1.140.0 candidate repeatedly
+The initial native visual QA attempt was incomplete. The cached VS Code 1.140.0 candidate repeatedly
 exited with SIGSEGV (139) before extension registration on this WSL2 host.
 A virtual display was verified with `xdpyinfo`; alternate launches with
 `--no-sandbox`, explicit X11, and disabled shared-memory/crash-reporter options
@@ -215,3 +215,26 @@ scenarios are initial orientation, the unfamiliar-concept example, the shorter
 familiar-concept route, and navigation to their shared evidence beat. Rerun
 those scenarios in a working isolated native editor before claiming full
 presentation verification.
+
+### Native editor follow-up (2026-10-05)
+
+The missing scenarios passed against the packaged `getkankodev.kanko`
+`0.1.1-rc1` candidate in VS Code 1.140.0 with a disposable workspace/profile
+and virtual display. Removing inherited `LD_AUDIT`, `GLIBC_TUNABLES`, and
+`LD_FLOXLIB_FILES_PATH` from the editor process environment bypassed the launch
+crash; this does not isolate which individual setting caused it. The user's
+environment configuration was not changed.
+
+Both routes loaded their first beat with source links and loader highlights
+without workaround clicks. Native sidebar navigation advanced the unfamiliar
+route through its concrete example and evidence, returned from evidence to
+the example, and advanced the shorter familiar route directly to the same
+evidence. Both evidence states displayed the loader and regression together
+and retained the same claim/evidence coverage, limitation, and optional prompt.
+Five screenshots were captured and inspected, with no visual regressions in
+these scenarios. Artifacts and scenario captions are kept locally under
+`docs/verification/2026-10-05-learning-tour/`.
+
+This completes the previously missing presentation scenarios. It does not
+establish questionnaire-routing reliability or human-learning benefits;
+the human pilot remains pending.

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1
+## 0.1.1-rc1
 
 - Keep sidebar anchor chips and fonts visible when host theme values are missing.
 - Rebuild and validate current extension assets on every local install, including

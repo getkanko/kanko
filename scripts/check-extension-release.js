@@ -9,7 +9,10 @@ const read = (name) => fs.readFileSync(path.join(root, name), "utf8");
 const manifest = JSON.parse(read("editor-extension/package.json"));
 const lock = JSON.parse(read("editor-extension/package-lock.json"));
 
-assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/, "Use a stable major.minor.patch version");
+const numeric = "(?:0|[1-9]\\d*)";
+const prereleaseIdentifier = `(?:${numeric}|\\d*[A-Za-z-][0-9A-Za-z-]*)`;
+const releaseVersion = new RegExp(`^${numeric}\\.${numeric}\\.${numeric}(?:-${prereleaseIdentifier}(?:\\.${prereleaseIdentifier})*)?$`);
+assert.match(manifest.version, releaseVersion, "Use a major.minor.patch version with an optional SemVer prerelease suffix");
 assert.equal(lock.version, manifest.version, "Lockfile version differs from manifest");
 assert.equal(lock.packages[""].version, manifest.version, "Lockfile root version differs from manifest");
 assert.equal(read("editor-extension/LICENSE"), read("LICENSE"), "Packaged license differs from repository license");
