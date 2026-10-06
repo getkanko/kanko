@@ -367,7 +367,10 @@ class ReviewMapService {
     const diagram: Diagram = {
       ...valid,
       id: diagramId,
-      pinned: valid.pinned === true,
+      // A redraw keeps the reviewer's pin unless the caller says otherwise.
+      pinned:
+        valid.pinned ??
+        (valid.replaces ? records.items[valid.replaces].pinned : false),
       sourceHash: diagramSourceHash(valid),
       createdAt: new Date().toISOString(),
     };

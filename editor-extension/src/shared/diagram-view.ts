@@ -41,6 +41,17 @@ export interface PositionedNode {
   /** A streamed edge names this node before it arrives. */
   placeholder?: boolean;
   ghost?: boolean;
+  /** The before revision's own text, code and beats for a shared id. */
+  before?: NodeFacts;
+}
+
+/** What a node says and points at in one revision. */
+export interface NodeFacts {
+  label: string;
+  sublabel?: string;
+  location?: string;
+  beatIds: string[];
+  claims: PositionedNode["claims"];
 }
 
 export interface PositionedEdge {
@@ -55,6 +66,10 @@ export interface PositionedEdge {
   was?: string;
   sides: GraphSide[];
   beatIds: string[];
+  /** A shared edge's label in the before revision, when it differs. */
+  beforeLabel?: string;
+  /** The before-only route of an edge whose endpoints changed; not in Diff. */
+  variant?: boolean;
 }
 
 export interface DiagramLayout {

@@ -527,6 +527,51 @@ test("the expanded view defaults to Diff with written tags and keeps positions a
   assert.equal(f.container.querySelectorAll("[data-node]").length, 10);
 });
 
+test("Before shows the base revision's own labels, routes and anchors", () => {
+  const f = setup("panel");
+  f.receive({ type: "panel", view: k02, follow: true });
+  const edges = () =>
+    [...f.container.querySelectorAll<SVGGElement>("[data-edge]")].map(
+      (el) => el.dataset.edge,
+    );
+  // Diff draws each rerouted edge once, on its after route.
+  assert.ok(!edges().some((id) => id?.endsWith("@before")));
+  fireEvent.click(screen.getByRole("button", { name: "Before" }));
+  const sentNode = node(f.container, "decide#sent");
+  assert.ok(sentNode.textContent?.includes("Connection refused or DNS?"));
+  assert.ok(!sentNode.textContent?.includes("Sent any bytes?"));
+  assert.match(
+    sentNode.getAttribute("aria-label") || "",
+    /jumps to payments\/retry\/classify\.go:\d+ \(base\)$/,
+  );
+  assert.ok(
+    node(f.container, "decide#backoff").textContent?.includes("Retry once"),
+  );
+  // The old routes and labels, not the after ones.
+  assert.deepEqual(edges().sort(), [
+    "e-fall@before",
+    "e-sent-no",
+    "e-start@before",
+  ]);
+  assert.equal(edge(f.container, "e-sent-no")?.textContent, "yes");
+  assert.equal(edge(f.container, "e-fall@before")?.textContent, "no");
+  // Before has no beats, so nothing is highlighted as this beat.
+  assert.equal(f.container.querySelectorAll(".dg-node.dg-current").length, 0);
+  fireEvent.click(sentNode);
+  assert.deepEqual(sent(f.messages).at(-1), {
+    type: "diagramNode",
+    diagramId: "dgm_k02",
+    nodeId: "decide#sent",
+    side: "before",
+    revision: 5,
+  });
+  fireEvent.click(screen.getByRole("button", { name: "After" }));
+  assert.ok(
+    node(f.container, "decide#sent").textContent?.includes("Sent any bytes?"),
+  );
+  assert.equal(edge(f.container, "e-sent-no")?.textContent, "no");
+});
+
 test("Follow tour: beat changes re-highlight while on, and leave the diagram alone while off", () => {
   const f = setup("panel");
   f.receive({ type: "panel", view: k02, follow: true });

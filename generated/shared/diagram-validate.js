@@ -182,7 +182,13 @@ function validateDiagram(input, options = {}) {
         );
     }
   }
-  const beatIds = new Set((stop?.beats || []).map((b) => b.id));
+  // A partial stream without stop context checks beat ids for shape only;
+  // membership is checked when the final diagram is stored.
+  const beatIds = stop
+    ? new Set(stop.beats.map((b) => b.id))
+    : options.partial
+      ? null
+      : new Set();
   const claimIds = options.claims
     ? new Set(options.claims.map((c) => c.id))
     : null;
@@ -463,7 +469,9 @@ function validateDiagram(input, options = {}) {
       if (
         edge.beatIds !== undefined &&
         (!Array.isArray(edge.beatIds) ||
-          edge.beatIds.some((id) => !nonempty(id) || !beatIds.has(id)))
+          edge.beatIds.some(
+            (id) => !nonempty(id) || (beatIds && !beatIds.has(id)),
+          ))
       )
         error(
           "unknown_beat",

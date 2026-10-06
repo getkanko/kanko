@@ -38,6 +38,8 @@ export type DiagramNodeMessage = Revisioned<{
   type: "diagramNode";
   diagramId: string;
   nodeId: string;
+  /** The revision whose anchor to follow; after unless shown in Before. */
+  side?: "before" | "after";
 }>;
 export type GotoBeatMessage = Revisioned<{
   type: "gotoBeat";

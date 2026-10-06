@@ -165,6 +165,27 @@ test("partial streams check structure without metadata or anchors", () => {
   );
   assert.ok(partial.ok, JSON.stringify(partial.findings));
   assert.equal(validateDiagram({ title: "x" }, { partial: true }).ok, false);
+  // Beat ids are checked for shape only until the stop is known.
+  const beats = {
+    kind: "flow",
+    title: "Decide",
+    after: {
+      nodes: [{ id: "k", label: "Key?", shape: "decision", beatIds: ["key"] }],
+      edges: [{ id: "e", from: "k", to: "x", beatIds: ["key"] }],
+    },
+  };
+  assert.ok(validateDiagram(beats, { partial: true }).ok);
+  const malformed = {
+    ...beats,
+    after: {
+      ...beats.after,
+      nodes: [{ ...beats.after.nodes[0], beatIds: [""] }],
+    },
+  };
+  assert.deepEqual(
+    codes(validateDiagram(malformed, { partial: true }).findings),
+    ["unknown_beat"],
+  );
 });
 
 test("diff marks new decisions and changed nodes with their old labels", (t) => {

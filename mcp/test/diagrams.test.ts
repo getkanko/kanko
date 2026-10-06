@@ -100,6 +100,42 @@ test("the per-stop budget limits automatic diagrams; a redraw replaces its origi
   });
 });
 
+test("redrawing a pinned diagram keeps the pin unless the redraw says otherwise", (t) => {
+  const f = fixture(t);
+  const args = { workspace: f.workspace, mapId: f.mapId, settings: auto };
+  const first = f.service.diagramPut({ ...args, diagram: f.k03Timeline() });
+  f.service.diagramPin({
+    workspace: f.workspace,
+    mapId: f.mapId,
+    diagramId: first.diagramId,
+    stopId: "K03",
+  });
+  const redraw = f.service.diagramPut({
+    ...args,
+    diagram: { ...f.k03Timeline(), replaces: first.diagramId },
+  });
+  assert.equal(record(redraw.diagram).pinned, true);
+  const restarted = new ReviewMapService({ root: `${f.root}/state` });
+  const items = records(
+    record(
+      restarted.get({
+        workspace: f.workspace,
+        mapId: f.mapId,
+        selector: { kind: "diagrams" },
+      }),
+    ).items,
+  );
+  assert.deepEqual(
+    items.map((d) => [d.id, d.pinned]),
+    [[redraw.diagramId, true]],
+  );
+  const unpinned = f.service.diagramPut({
+    ...args,
+    diagram: { ...f.k03Timeline(), replaces: redraw.diagramId, pinned: false },
+  });
+  assert.equal(record(unpinned.diagram).pinned, false);
+});
+
 test("a derived diagram with an unanchored node is rejected with findings", (t) => {
   const f = fixture(t);
   const diagram = f.k02Diagram();
@@ -422,9 +458,16 @@ test("tools read editor settings, store diagrams, and show them in the editor", 
   const streamed = record(editor.seen.at(-1)?.[1]);
   assert.equal(record(streamed.draft).stopId, "K03");
   assert.equal(streamed.status, "Reading policy.go and deadline.go");
+  // Beat ids stream before the stop is known; membership is checked at the end.
   await call("kanko_diagram_stream", {
     ...base,
-    patch: { after: { nodes: after.nodes.slice(0, 2) } },
+    patch: {
+      after: {
+        nodes: after.nodes
+          .slice(0, 2)
+          .map((n) => ({ ...n, beatIds: ["policy"] })),
+      },
+    },
   });
   const final = record(
     await call("kanko_diagram_stream", {

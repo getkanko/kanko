@@ -132,6 +132,13 @@ export function createDiagramPanel(
         panel?.dispose();
         return;
       }
+      // Off means no diagrams anywhere, including an open panel.
+      if (snapshot.diagrams.settings.mode === "off") {
+        view = null;
+        stopId = snapshot.stop.id;
+        panel?.dispose();
+        return;
+      }
       const changedStop = snapshot.stop.id !== stopId;
       stopId = snapshot.stop.id;
       const first = snapshot.diagrams.cards[0];

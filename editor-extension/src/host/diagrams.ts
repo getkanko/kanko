@@ -1,5 +1,6 @@
 import type {
   Diagram,
+  DiagramNode,
   DiagramSettings,
   DiagramSkip,
   Graph,
@@ -11,6 +12,7 @@ import type {
   DetourView,
   DiagramSnapshot,
   DiagramView,
+  NodeFacts,
   TourMapEntry,
 } from "../shared/diagram-view.js";
 import { isRecord } from "./requests.js";
@@ -116,6 +118,24 @@ export async function buildView(
   const edgeSource = new Map(union.edges.map((e) => [e.id, e]));
   const claims = options.claims || {};
   const symbol = diagram.provenance.sources.find((s) => s.symbol)?.symbol;
+  const facts = (node?: DiagramNode): NodeFacts => {
+    const anchor = node?.anchor;
+    return {
+      label: node?.label || "",
+      ...(node?.sublabel ? { sublabel: node.sublabel } : {}),
+      ...(anchor
+        ? {
+            location: `${anchor.path}:${anchor.context.startLine}${anchor.context.endLine === anchor.context.startLine ? "" : `–${anchor.context.endLine}`}${anchor.side === "base" ? " (base)" : ""}`,
+          }
+        : {}),
+      beatIds: node?.beatIds || [],
+      claims: (node?.claimIds || []).map((id) => ({
+        id,
+        status: claims[id] || "cited",
+        attention: ATTENTION.test(claims[id] || ""),
+      })),
+    };
+  };
   const stale = options.stale === true;
   return {
     id: diagram.id,
@@ -146,20 +166,10 @@ export async function buildView(
       ...(geometry.axis ? { axis: geometry.axis } : {}),
       nodes: geometry.nodes.map((n) => {
         const node = source.get(n.id);
-        const anchor = node?.anchor;
         return {
           ...n,
-          ...(anchor
-            ? {
-                location: `${anchor.path}:${anchor.context.startLine}${anchor.context.endLine === anchor.context.startLine ? "" : `–${anchor.context.endLine}`}${anchor.side === "base" ? " (base)" : ""}`,
-              }
-            : {}),
-          beatIds: node?.beatIds || [],
-          claims: (node?.claimIds || []).map((id) => ({
-            id,
-            status: claims[id] || "cited",
-            attention: ATTENTION.test(claims[id] || ""),
-          })),
+          ...facts(node),
+          ...(node?.before ? { before: facts(node.before) } : {}),
         };
       }),
       edges: geometry.edges.map((e) => ({

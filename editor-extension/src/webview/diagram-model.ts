@@ -9,30 +9,54 @@ export type GraphMode = "before" | "after" | "diff";
 
 /** Nodes and edges for the current beat. An edge without its own beats is
  * highlighted when both of its ends are. */
-export function highlighted(view: DiagramView, beatId: string | null) {
-  const nodes = new Set<string>();
-  const edges = new Set<string>();
-  if (!beatId) return { nodes, edges };
-  for (const node of view.layout.nodes)
-    if (node.beatIds.includes(beatId)) nodes.add(node.id);
-  for (const edge of view.layout.edges)
+export function highlighted(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  beatId: string | null,
+) {
+  const hotNodes = new Set<string>();
+  const hotEdges = new Set<string>();
+  if (!beatId) return { nodes: hotNodes, edges: hotEdges };
+  for (const node of nodes)
+    if (node.beatIds.includes(beatId)) hotNodes.add(node.id);
+  for (const edge of edges)
     if (
       edge.beatIds.includes(beatId) ||
-      (!edge.beatIds.length && nodes.has(edge.from) && nodes.has(edge.to))
+      (!edge.beatIds.length && hotNodes.has(edge.from) && hotNodes.has(edge.to))
     )
-      edges.add(edge.id);
+      hotEdges.add(edge.id);
+  return { nodes: hotNodes, edges: hotEdges };
+}
+
+/** Items shown in a mode, with each shared item's text, code location and
+ * beats taken from that revision. Diff shows only the after route of an edge
+ * whose endpoints changed. */
+export function inMode(view: DiagramView, mode: GraphMode) {
+  const wanted: GraphSide | null = mode === "diff" ? null : mode;
+  const nodes = view.layout.nodes
+    .filter((n) => !wanted || n.sides.includes(wanted))
+    .map((n) => {
+      if (mode !== "before" || !n.before) return n;
+      const { sublabel: _, location: __, ...rest } = n;
+      return { ...rest, ...n.before };
+    });
+  const shown = new Set(nodes.map((n) => n.id));
+  const edges = view.layout.edges
+    .filter((e) => (wanted ? e.sides.includes(wanted) : !e.variant))
+    .filter((e) => shown.has(e.from) && shown.has(e.to))
+    .map((e) =>
+      mode === "before" && e.beforeLabel !== undefined
+        ? { ...e, label: e.beforeLabel || undefined }
+        : e,
+    );
   return { nodes, edges };
 }
 
-const side = (mode: GraphMode): GraphSide | null =>
-  mode === "diff" ? null : mode;
-
-export function visible<T extends PositionedNode | PositionedEdge>(
-  items: T[],
-  mode: GraphMode,
-): T[] {
-  const wanted = side(mode);
-  return items.filter((item) => !wanted || item.sides.includes(wanted));
+/** Which revision's anchor a click in this mode should follow. */
+export function sideOf(node: PositionedNode, mode: GraphMode): GraphSide {
+  return mode === "before" || !node.sides.includes("after")
+    ? "before"
+    : "after";
 }
 
 /** Diff is the default when a matching before graph exists. */

@@ -54,15 +54,23 @@ export function createDiagramActions(
   return {
     /** Move the presenter pointer to a node's anchor, activating its first
      * beat when the current beat does not already show it. */
-    async node(diagramId: string, nodeId: string, revision: number) {
+    async node(
+      diagramId: string,
+      nodeId: string,
+      revision: number,
+      side: "before" | "after" = "after",
+    ) {
       const snapshot = loaded();
       const record = controller().diagrams()?.records[diagramId];
       const plan = controller().plan();
       if (!record || !plan) throw fail("bad_request", "Unknown diagram.");
-      const node = [
-        ...record.after.nodes,
-        ...(record.before?.nodes || []),
-      ].find((n) => n.id === nodeId);
+      const graphs =
+        side === "before"
+          ? [record.before, record.after]
+          : [record.after, record.before];
+      const node = graphs
+        .flatMap((graph) => graph?.nodes || [])
+        .find((n) => n.id === nodeId);
       if (!node?.anchor)
         throw fail(
           "bad_request",
@@ -217,6 +225,7 @@ export async function dispatchDiagramMessage(
         text("diagramId"),
         text("nodeId"),
         Number(message.revision),
+        message.side === "before" ? "before" : "after",
       );
       return true;
     case "gotoBeat":
