@@ -1,8 +1,8 @@
 {
   "name": "kanko",
-  "displayName": "Kank\u014d",
+  "displayName": "Kankō",
   "description": "Let your coding agent guide you through code changes with focused highlights, native diffs, and editor citations.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "getkankodev",
   "license": "MIT",
   "repository": {
@@ -264,7 +264,7 @@
       }
     ],
     "configuration": {
-      "title": "Kank\u014d Presentation",
+      "title": "Kankō Presentation",
       "properties": {
         "kanko.presentation.dimOpacity": {
           "type": "number",
@@ -319,7 +319,7 @@
             "off"
           ],
           "enumDescriptions": [
-            "Kank\u014d decides per stop and may add a diagram to an answer when it helps.",
+            "Kankō decides per stop and may add a diagram to an answer when it helps.",
             "No automatic diagrams. Requests and Draw one anyway still work.",
             "No diagrams at all. Requests get a text answer."
           ],
@@ -363,27 +363,27 @@
     "commands": [
       {
         "command": "kanko.copyCitation",
-        "title": "Kank\u014d: Copy Citation"
+        "title": "Kankō: Copy Citation"
       },
       {
         "command": "kanko.tour.pinActive",
-        "title": "Kank\u014d: Toggle Pin on Active Tour Anchor"
+        "title": "Kankō: Toggle Pin on Active Tour Anchor"
       },
       {
         "command": "kanko.tour.overrideSequence",
-        "title": "Kank\u014d: Show Multiple Groups for This Stop"
+        "title": "Kankō: Show Multiple Groups for This Stop"
       },
       {
         "command": "kanko.tour.quickPick",
-        "title": "Kank\u014d: Find File in Stop"
+        "title": "Kankō: Find File in Stop"
       },
       {
         "command": "kanko.tour.resetLayout",
-        "title": "Kank\u014d: Reset Stop Layout"
+        "title": "Kankō: Reset Stop Layout"
       },
       {
         "command": "kanko.diagram.openBeside",
-        "title": "Kank\u014d: Open Stop Diagram Beside Code"
+        "title": "Kankō: Open Stop Diagram Beside Code"
       }
     ],
     "menus": {
@@ -399,7 +399,7 @@
       "secondarySidebar": [
         {
           "id": "kanko",
-          "title": "Kank\u014d",
+          "title": "Kankō",
           "icon": "assets/kanko-sidebar.svg"
         }
       ]

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
 - Show agent-drawn diagrams (flow, sequence, state, data flow, timeline) under
   the beat narration, highlighted by beat and linked node by node to code.
@@ -12,6 +12,8 @@
 - Add `kanko.diagrams.mode`, `maxPerStop`, `derivedOnly`, and `openBeside`,
   and the `kanko.attention` color.
 - Bridge protocol 4 adds diagram and reviewer-event endpoints.
+- Restrict release tags by channel: candidate versions from `dev`, stable versions from `main`.
+- Accept SemVer prerelease versions in version checks and bumps.
 
 ## 0.1.1
 
