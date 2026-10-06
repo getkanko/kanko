@@ -73,6 +73,16 @@
         }
       },
       {
+        "id": "kanko.attention",
+        "description": "Disputed claims and stale diagrams",
+        "defaults": {
+          "dark": "#E8B04A",
+          "light": "#8A5A00",
+          "highContrast": "#FFD166",
+          "highContrastLight": "#6B4500"
+        }
+      },
+      {
         "id": "kanko.anchor1",
         "description": "Tour anchor 1 identity color",
         "defaults": {
@@ -301,6 +311,48 @@
           "default": "auto",
           "description": "Two-group layout. Auto stacks side-by-side diffs and uses columns for single-file views; three and four groups use split rows."
         },
+        "kanko.diagrams.mode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "onRequest",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Kank\u014d decides per stop and may add a diagram to an answer when it helps.",
+            "No automatic diagrams. Requests and Draw one anyway still work.",
+            "No diagrams at all. Requests get a text answer."
+          ],
+          "default": "auto",
+          "description": "When the agent draws diagrams in tours."
+        },
+        "kanko.diagrams.maxPerStop": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "default": 1,
+          "description": "Automatic diagrams allowed per stop. Diagrams you request do not count."
+        },
+        "kanko.diagrams.derivedOnly": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only allow diagrams derived from code or traces; block agent sketches."
+        },
+        "kanko.diagrams.openBeside": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "always",
+            "never"
+          ],
+          "enumDescriptions": [
+            "Show Open beside code on each diagram.",
+            "Open a stop's diagram beside the code when the stop starts.",
+            "Keep diagrams in the Tour view only."
+          ],
+          "default": "ask",
+          "description": "Whether diagrams open in an editor tab beside the code."
+        },
         "kanko.layout.sequenceFallback": {
           "type": "boolean",
           "default": true,
@@ -328,6 +380,10 @@
       {
         "command": "kanko.tour.resetLayout",
         "title": "Kank\u014d: Reset Stop Layout"
+      },
+      {
+        "command": "kanko.diagram.openBeside",
+        "title": "Kank\u014d: Open Stop Diagram Beside Code"
       }
     ],
     "menus": {
@@ -544,6 +600,7 @@
     "theme": "dark"
   },
   "dependencies": {
+    "elkjs": "0.12.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   }

@@ -3,7 +3,7 @@
     "requests": [
       {
         "query": {
-          "protocolVersion": 3
+          "protocolVersion": 4
         },
         "body": {}
       }
@@ -11,7 +11,7 @@
     "responses": [
       {
         "ok": true,
-        "protocolVersion": 3,
+        "protocolVersion": 4,
         "extensionVersion": "0.1.0",
         "ideName": "Visual Studio Code",
         "workspaceFolders": [
@@ -35,7 +35,7 @@
     "requests": [
       {
         "body": {
-          "protocolVersion": 3
+          "protocolVersion": 4
         }
       }
     ],
@@ -51,7 +51,7 @@
         "method": "POST",
         "path": "/tour/load",
         "body": {
-          "protocolVersion": 3,
+          "protocolVersion": 4,
           "workspace": "/repo",
           "tourId": "map",
           "plan": {
@@ -77,7 +77,7 @@
         "method": "POST",
         "path": "/tour/navigate",
         "body": {
-          "protocolVersion": 3,
+          "protocolVersion": 4,
           "workspace": "/repo",
           "action": "nextBeat"
         }
@@ -99,7 +99,7 @@
         "method": "POST",
         "path": "/tour/state",
         "body": {
-          "protocolVersion": 3,
+          "protocolVersion": 4,
           "workspace": "/repo",
           "mode": "exploring"
         }
@@ -112,6 +112,198 @@
           "code": "no_tour",
           "message": "Load a tour first."
         }
+      }
+    ]
+  },
+  "kanko_diagram_put": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/diagram/put",
+        "body": {
+          "protocolVersion": 4,
+          "workspace": "/repo",
+          "tourId": "map_1",
+          "diagram": {
+            "id": "dgm_1",
+            "kind": "flow",
+            "title": "How a failed send is classified",
+            "stopId": "K02",
+            "origin": "auto",
+            "reason": "Adds 3 branches to one function.",
+            "provenance": {
+              "status": "inferred",
+              "method": "agent-sketch",
+              "sources": [
+                {
+                  "path": "payments/retry/classify.go"
+                }
+              ],
+              "revs": {
+                "after": "7f02b1"
+              }
+            },
+            "after": {
+              "nodes": [
+                {
+                  "id": "start",
+                  "label": "Send failed",
+                  "shape": "start"
+                }
+              ],
+              "edges": []
+            },
+            "pinned": false,
+            "sourceHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "createdAt": "2026-10-05T00:00:00.000Z",
+            "stale": false
+          }
+        }
+      }
+    ],
+    "responses": [
+      {
+        "ok": true,
+        "snapshot": {
+          "loaded": true,
+          "revision": 4
+        }
+      },
+      {
+        "ok": false,
+        "error": {
+          "code": "no_tour",
+          "message": "Load a tour first."
+        }
+      }
+    ]
+  },
+  "kanko_diagram_skip": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/diagram/skip",
+        "body": {
+          "protocolVersion": 4,
+          "workspace": "/repo",
+          "tourId": "map_1",
+          "skip": {
+            "stopId": "K05",
+            "reason": "Adds 2 counters and no new control flow.",
+            "recordedAt": "2026-10-05T00:00:00.000Z"
+          }
+        }
+      }
+    ],
+    "responses": [
+      {
+        "ok": true,
+        "snapshot": {
+          "loaded": true,
+          "revision": 5
+        }
+      }
+    ]
+  },
+  "kanko_diagram_stream": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/diagram/stream",
+        "body": {
+          "protocolVersion": 4,
+          "workspace": "/repo",
+          "tourId": "map_1",
+          "detourId": "req_1",
+          "diagramId": "timeline-1",
+          "draft": {
+            "kind": "timeline",
+            "title": "Attempts vs deadline",
+            "after": {
+              "nodes": [],
+              "edges": [],
+              "axis": {
+                "unit": "s",
+                "min": 0,
+                "max": 2
+              }
+            }
+          },
+          "status": "Reading policy.go and deadline.go",
+          "final": false
+        }
+      }
+    ],
+    "responses": [
+      {
+        "ok": true,
+        "snapshot": {
+          "loaded": true,
+          "revision": 6
+        }
+      }
+    ]
+  },
+  "kanko_diagram_pin": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/diagram/pin",
+        "body": {
+          "protocolVersion": 4,
+          "workspace": "/repo",
+          "tourId": "map_1",
+          "diagramId": "timeline-1",
+          "stopId": "K03"
+        }
+      }
+    ],
+    "responses": [
+      {
+        "ok": true,
+        "snapshot": {
+          "loaded": true,
+          "revision": 7
+        }
+      }
+    ]
+  },
+  "kanko_await_reviewer": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/reviewer/await",
+        "body": {
+          "protocolVersion": 4,
+          "workspace": "/repo",
+          "timeoutMs": 0
+        }
+      }
+    ],
+    "responses": [
+      {
+        "ok": true,
+        "events": [
+          {
+            "kind": "diagram_request",
+            "id": "req_1",
+            "mapId": "map_1",
+            "stopId": "K05",
+            "context": {
+              "stopId": "K05",
+              "beatId": "b1",
+              "mode": "following",
+              "selectedAnchor": 1
+            }
+          },
+          {
+            "kind": "diagram_feedback",
+            "id": "fb_1",
+            "mapId": "map_1",
+            "diagramId": "dgm_1",
+            "value": "not_helpful"
+          }
+        ]
       }
     ]
   }

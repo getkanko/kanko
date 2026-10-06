@@ -5,6 +5,7 @@ import type {
   SlotLabel,
 } from "./layout.js";
 import type { Beat, Finding, TourStop } from "./tour.js";
+import type { DiagramSnapshot } from "./diagram-view.js";
 
 export type PresentationMode = "following" | "exploring" | "paused";
 
@@ -76,6 +77,7 @@ export interface LoadedTourSnapshot {
   narrationHtml: string;
   narration: string;
   receiptNarration: string;
+  diagrams: DiagramSnapshot;
 }
 
 export type TourSnapshot = UnloadedTourSnapshot | LoadedTourSnapshot;

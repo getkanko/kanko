@@ -1,6 +1,6 @@
 # Kankō: agent-drawn diagrams
 
-Status: ready for implementation
+Status: implemented (see Implementation notes)
 Date: 2026-10-05
 Owner: Eric
 Builds on: *Narration side panel spec* (implemented) and *Tour presentation in diff views* (implemented). Earlier docs use the old name Relay; all identifiers here use `kanko`.
@@ -289,6 +289,52 @@ Node clicks, view toggles, and beat sync stay local to the extension and never r
 - Should "Not helpful" feedback lower the agent's drawing rate for the rest of the tour, or only for that stop?
 - Should timeline diagrams take concrete numbers from config (as in the mockup) or from recorded traces when both exist and disagree?
 - Is ELK's bundle size acceptable inside the panel webview, or should the card use a lighter custom layered layout and reserve ELK for the expanded view?
+
+## Implementation notes
+
+What shipped, and where it differs from the text above:
+
+- **Code.** Shared types, diff, and text descriptions are in `shared/diagram.ts`;
+  validation, source hashing, and staleness in `shared/diagram-validate.ts`;
+  signals in `shared/diagram-signals.ts`. The review map stores `DiagramAdded`,
+  `DiagramSkipped`, `DiagramPinned`, and `DiagramFeedbackRecorded` events; the
+  aggregate's `diagrams` field appears only after the first one, so existing maps
+  and receipts hash unchanged. The extension's state, layout, panel, and actions
+  are in `editor-extension/src/host/diagram*.ts`, and the webview in
+  `editor-extension/src/webview/components/Diagram*.tsx`.
+- **Reviewer events.** This repository had no `kanko_await_reviewer` or detours,
+  so both are added here. The extension queues `diagram_request`,
+  `diagram_feedback`, and `diagram_pin` events, keeping them across window
+  reloads. The agent collects them with `kanko_await_reviewer` (`timeoutMs`, 0 to
+  poll). The MCP server saves pins and feedback to the review map before
+  returning them; a saved pin comes back as `diagram_pinned`. A detour is the
+  sidebar view of one request or streamed answer. Its id is the request id, or
+  any id the agent picks for a question asked in conversation.
+- **Tool arguments.** Every diagram tool also takes `workspace` and `mapId`,
+  like the other review map tools. `kanko_diagram_stream` patches may carry
+  `status`, `question`, and `answer` text; metadata can wait for the final
+  patch. The MCP server reads `kanko.diagrams.*` from the editor's `/status`
+  and uses the defaults when no editor answers. Storing a diagram never depends
+  on the editor being open.
+- **Node anchors.** A node anchor is `{path, side, context, contentHash, symbol?}`
+  in the review map's pinned revisions, hashed like tour anchors; `rev` is filled
+  in. A click focuses the stop anchor whose lines it overlaps, then the same
+  file. Because overlapping tour anchors merge, give a stop separate,
+  non-overlapping anchors per beat when beats should point at different nodes.
+- **Diff.** A node is `changed` when its label, sublabel, edges, or anchored
+  content differ. Diff appears when at least 40% of the smaller graph's node ids
+  match.
+- **Staleness.** It is computed when the tour loads (anchors re-read at the
+  current head) and when the presenter reports drift in an anchored file.
+- **Layout.** ELK runs in the extension host, and webviews receive positioned
+  SVG data. This answers the bundle-size question: `webview.js` does not grow,
+  and `dist/extension.js` carries ELK. elkjs is EPL-2.0; its notice is in
+  `THIRD_PARTY_NOTICES.txt`.
+- **Settings.** The tour map and settings sit in a collapsed **Diagrams in this
+  tour** section of the Tour view. In `off` mode only the settings remain.
+  Diagrams per stop is a 0–3 choice rather than the mockup's checkbox.
+- **Bridge.** Protocol 4 adds `/diagram/put`, `/diagram/skip`, `/diagram/stream`,
+  `/diagram/pin`, and `/reviewer/await`.
 
 ## Source mockups
 

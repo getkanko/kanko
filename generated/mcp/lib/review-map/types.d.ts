@@ -1,5 +1,10 @@
 // Generated from TypeScript. Run npm run runtime:build in editor-extension.
 import type { TourStop, ChangeManifest } from "../../../shared/types.js";
+import type {
+  Diagram,
+  DiagramSettings,
+  DiagramSkip,
+} from "../../../shared/diagram.js";
 export interface Actor {
   kind: string;
   id: string;
@@ -185,6 +190,16 @@ export interface NewMap {
   actor: Actor;
   occurredAt: string;
 }
+/** A diagram in the dossier; superseded diagrams are kept as history. */
+export interface StoredDiagram extends Diagram {
+  supersededBy?: string;
+  feedback?: "not_helpful";
+}
+export interface DiagramRecords {
+  items: Record<string, StoredDiagram>;
+  /** The latest skip decision by stop id. */
+  skips: Record<string, DiagramSkip>;
+}
 export interface Aggregate {
   schemaVersion: number;
   producerVersion: string;
@@ -207,6 +222,8 @@ export interface Aggregate {
   createdBy: Actor;
   archivedAt: string | null;
   lastEventHash?: string;
+  /** Absent until the first diagram event, so older maps hash unchanged. */
+  diagrams?: DiagramRecords;
 }
 export interface MadeEntity {
   kind: EntityKind;
@@ -283,6 +300,20 @@ export interface EventPayloads {
     receiptRef: ReceiptRef;
   };
   ReviewMapArchived: Record<string, never>;
+  DiagramAdded: {
+    diagram: Diagram;
+  };
+  DiagramSkipped: {
+    skip: DiagramSkip;
+  };
+  DiagramPinned: {
+    diagramId: string;
+    stopId: string;
+  };
+  DiagramFeedbackRecorded: {
+    diagramId: string;
+    value: "not_helpful";
+  };
 }
 export type Payloads = EventPayloads & Record<EntityEvent, MadeEntity>;
 export type EventSpec = {
@@ -446,5 +477,26 @@ export interface MapRequests {
   delete: MapLocation & {
     confirmMapId: string;
     actor: Actor;
+  };
+  diagramPut: MapLocation & {
+    diagram: unknown;
+    actor?: Actor;
+    settings?: DiagramSettings;
+  };
+  diagramSkip: MapLocation & {
+    stopId: string;
+    reason: string;
+    actor?: Actor;
+    settings?: DiagramSettings;
+  };
+  diagramPin: MapLocation & {
+    diagramId: string;
+    stopId: string;
+    actor?: Actor;
+  };
+  diagramFeedback: MapLocation & {
+    diagramId: string;
+    value: "not_helpful";
+    actor?: Actor;
   };
 }

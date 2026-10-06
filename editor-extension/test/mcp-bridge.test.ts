@@ -16,7 +16,7 @@ test("load validates the authored review map before sending it to the extension"
     };
   const server = await startServer({
     authToken: "test",
-    protocolVersion: 3,
+    protocolVersion: 4,
     handlers: {
       "POST /tour/load": async (body: unknown) => {
         seen.push(body);
@@ -45,7 +45,7 @@ test("load validates the authored review map before sending it to the extension"
     ).loaded,
     true,
   );
-  assert.deepEqual(seen, [{ ...payload, protocolVersion: 3 }]);
+  assert.deepEqual(seen, [{ ...payload, protocolVersion: 4 }]);
 });
 test("navigation and presentation state go through the authenticated bridge", async (t) => {
   const seen: [string, Record<string, unknown>][] = [];
@@ -63,7 +63,7 @@ test("navigation and presentation state go through the authenticated bridge", as
   });
   const server = await startServer({
     authToken: "test",
-    protocolVersion: 3,
+    protocolVersion: 4,
     handlers,
   });
   t.after(() => server.close());
@@ -77,7 +77,7 @@ test("navigation and presentation state go through the authenticated bridge", as
   });
   await call("kanko_tour_set_state", { workspace: "/repo", mode: "exploring" });
   await call("kanko_tour_clear", { workspace: "/repo" });
-  assert.equal(seen[0][1].protocolVersion, 3);
+  assert.equal(seen[0][1].protocolVersion, 4);
   assert.equal(seen[0][1].workspace, "/repo");
   assert.equal(
     record(
@@ -92,7 +92,7 @@ test("extension findings survive HTTP and MCP error propagation", async (t) => {
   };
   const server = await startServer({
     authToken: "test",
-    protocolVersion: 3,
+    protocolVersion: 4,
     handlers: {
       "POST /tour/navigate": () => {
         throw Object.assign(new Error("Fix anchor"), {

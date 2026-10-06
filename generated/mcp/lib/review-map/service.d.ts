@@ -1,14 +1,17 @@
 // Generated from TypeScript. Run npm run runtime:build in editor-extension.
 import type {
+  Actor,
   Aggregate,
   ChangeRevision,
   Manifest,
   Selection,
   MapRequests,
+  EventSpec,
 } from "./types.js";
 import type { Finding } from "../../../shared/types.js";
 import type { StoreOptions } from "./file-store.js";
 import { FileReviewMapStore } from "./file-store.js";
+import type { DiagramSettings, Graph } from "../../../shared/diagram.js";
 declare function redactSensitive(
   value: unknown,
   key?: string,
@@ -42,6 +45,111 @@ declare class ReviewMapService {
       disposition: string | undefined;
     }[];
     findings: Finding[];
+    diagrams: {
+      items: {
+        stale: boolean;
+        before?: Graph;
+        after: Graph;
+        supersededBy?: string;
+        feedback?: "not_helpful";
+        id: string;
+        kind: import("../../../shared/diagram.js").DiagramKind;
+        title: string;
+        stopId: string;
+        origin: import("../../../shared/diagram.js").DiagramOrigin;
+        reason: string;
+        provenance: import("../../../shared/diagram.js").DiagramProvenance;
+        pinned: boolean;
+        sourceHash: import("../../../shared/types.js").ContentHash;
+        createdAt: string;
+        replaces?: string;
+        detourId?: string;
+      }[];
+      skips: import("../../../shared/diagram.js").DiagramSkip[];
+      signals: import("../../../shared/diagram-signals.js").DiagramSignals[];
+    };
+  };
+  /** Diagrams that belong on stops, with skips, freshness, and signals. */
+  diagramProjection(
+    state: Aggregate,
+    settings?: DiagramSettings,
+  ): {
+    items: {
+      stale: boolean;
+      before?: Graph;
+      after: Graph;
+      supersededBy?: string;
+      feedback?: "not_helpful";
+      id: string;
+      kind: import("../../../shared/diagram.js").DiagramKind;
+      title: string;
+      stopId: string;
+      origin: import("../../../shared/diagram.js").DiagramOrigin;
+      reason: string;
+      provenance: import("../../../shared/diagram.js").DiagramProvenance;
+      pinned: boolean;
+      sourceHash: import("../../../shared/types.js").ContentHash;
+      createdAt: string;
+      replaces?: string;
+      detourId?: string;
+    }[];
+    skips: import("../../../shared/diagram.js").DiagramSkip[];
+    signals: import("../../../shared/diagram-signals.js").DiagramSignals[];
+  };
+  /** Append diagram events at the latest revision; diagrams are presentation
+   * artifacts, so a concurrent writer is retried rather than reported. */
+  appendDiagramEvents(
+    workspace: string,
+    mapId: string,
+    actor: Actor | undefined,
+    build: (state: Aggregate) => EventSpec[],
+  ): {
+    state: Aggregate;
+    emittedEventIds: string[];
+  };
+  diagramPut(
+    args: MapRequests["diagramPut"],
+    options?: {
+      id?: string;
+    },
+  ): {
+    diagramId: string;
+    aggregateRevision: number;
+    diagram: {
+      stale: boolean;
+      id: string;
+      kind: import("../../../shared/diagram.js").DiagramKind;
+      title: string;
+      stopId: string;
+      origin: import("../../../shared/diagram.js").DiagramOrigin;
+      reason: string;
+      provenance: import("../../../shared/diagram.js").DiagramProvenance;
+      before?: Graph;
+      after: Graph;
+      pinned: boolean;
+      sourceHash: import("../../../shared/types.js").ContentHash;
+      createdAt: string;
+      replaces?: string;
+      detourId?: string;
+    };
+    findings: import("../../../shared/diagram-validate.js").DiagramFinding[];
+  };
+  diagramSkip(args: MapRequests["diagramSkip"]): {
+    ok: boolean;
+    aggregateRevision: number;
+    skip: {
+      stopId: string;
+      reason: string;
+      recordedAt: string;
+    };
+  };
+  diagramPin(args: MapRequests["diagramPin"]): {
+    ok: boolean;
+    aggregateRevision: number;
+  };
+  diagramFeedback(args: MapRequests["diagramFeedback"]): {
+    ok: boolean;
+    aggregateRevision: number;
   };
   open(args: MapRequests["open"]):
     | {
@@ -263,6 +371,29 @@ declare class ReviewMapService {
         risks: import("./types.js").Entity[];
       }
     | {
+        items: {
+          stale: boolean;
+          before?: Graph;
+          after: Graph;
+          supersededBy?: string;
+          feedback?: "not_helpful";
+          id: string;
+          kind: import("../../../shared/diagram.js").DiagramKind;
+          title: string;
+          stopId: string;
+          origin: import("../../../shared/diagram.js").DiagramOrigin;
+          reason: string;
+          provenance: import("../../../shared/diagram.js").DiagramProvenance;
+          pinned: boolean;
+          sourceHash: import("../../../shared/types.js").ContentHash;
+          createdAt: string;
+          replaces?: string;
+          detourId?: string;
+        }[];
+        skips: import("../../../shared/diagram.js").DiagramSkip[];
+        signals: import("../../../shared/diagram-signals.js").DiagramSignals[];
+      }
+    | {
         stateRoot: string;
         mapDirectory: string;
       }
@@ -393,6 +524,8 @@ declare class ReviewMapService {
         claims?: undefined;
       };
   apply(args: MapRequests["apply"]): {
+    diagramSignals?:
+      import("../../../shared/diagram-signals.js").DiagramSignals[] | undefined;
     mapId: string;
     aggregateRevision: number;
     emittedEventIds: string[];

@@ -1,5 +1,5 @@
 // Generated from TypeScript. Run npm run runtime:build in editor-extension.
-declare const PROTOCOL_VERSION = 3;
+declare const PROTOCOL_VERSION = 4;
 declare const ERROR_CODES: readonly [
   "unauthorized",
   "protocol_mismatch",
@@ -42,6 +42,26 @@ declare const ROUTES: {
     path: string;
   };
   kanko_tour_clear: {
+    method: string;
+    path: string;
+  };
+  kanko_diagram_put: {
+    method: string;
+    path: string;
+  };
+  kanko_diagram_skip: {
+    method: string;
+    path: string;
+  };
+  kanko_diagram_stream: {
+    method: string;
+    path: string;
+  };
+  kanko_diagram_pin: {
+    method: string;
+    path: string;
+  };
+  kanko_await_reviewer: {
     method: string;
     path: string;
   };

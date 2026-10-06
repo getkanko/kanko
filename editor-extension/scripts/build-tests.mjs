@@ -28,7 +28,7 @@ await Promise.all(
       outfile: path.join(output, entry.replace(/\.ts$/, ".js")),
       bundle: true,
       jsx: "automatic",
-      ...(entry.endsWith("sidebar-ui.test.ts")
+      ...(/(?:sidebar|diagram)-ui\.test\.ts$/.test(entry)
         ? {
             banner: { js: `require(${JSON.stringify(environment)});` },
             plugins: [

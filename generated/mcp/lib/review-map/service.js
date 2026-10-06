@@ -16,6 +16,9 @@ const canonical_js_1 = require("./canonical.js");
 const errors_js_1 = require("./errors.js");
 const tour_js_1 = require("../../../shared/tour.js");
 const tour_sources_js_1 = require("../../../shared/tour-sources.js");
+const diagram_js_1 = require("../../../shared/diagram.js");
+const diagram_validate_js_1 = require("../../../shared/diagram-validate.js");
+const diagram_signals_js_1 = require("../../../shared/diagram-signals.js");
 const REVIEW_COMMANDS = new Set([
   "StartReviewSession",
   "StartStop",
@@ -84,6 +87,8 @@ function selectionFor(change) {
   };
 }
 const currentChange = domain_js_1.currentRevision;
+const DIAGRAM_ACTOR = { kind: "agent", id: "kanko" };
+const DIAGRAM_ID = /^[\w.:-]{1,64}$/;
 function openItems(state) {
   return {
     questions: Object.values(state.entities.questions).filter(
@@ -153,7 +158,280 @@ class ReviewMapService {
         }),
       ),
       findings: checked.findings,
+      diagrams: this.diagramProjection(state),
     };
+  }
+  /** Diagrams that belong on stops, with skips, freshness, and signals. */
+  diagramProjection(
+    state,
+    settings = (0, diagram_js_1.readDiagramSettings)(undefined),
+  ) {
+    const plan = state.tourPlans[state.currentTourPlanId || ""];
+    if (!plan) return { items: [], skips: [], signals: [] };
+    const sources = (0, tour_sources_js_1.tourSources)(
+      state.repository.workspace,
+      currentChange(state),
+    );
+    const stopIds = new Set(plan.stops.map((stop) => stop.id));
+    const records = state.diagrams || { items: {}, skips: {} };
+    const items = Object.values(records.items)
+      .filter(
+        (d) =>
+          !d.supersededBy &&
+          stopIds.has(d.stopId) &&
+          (d.origin === "auto" || d.pinned),
+      )
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((d) => {
+        // A regenerated plan may rename beats; those links are dropped and
+        // the drawing reads as stale until it is redrawn.
+        const beats = new Set(
+          plan.stops
+            .find((stop) => stop.id === d.stopId)
+            ?.beats.map((b) => b.id),
+        );
+        let orphaned = false;
+        const keep = (item) => {
+          if (!item.beatIds?.some((id) => !beats.has(id))) return item;
+          orphaned = true;
+          return {
+            ...item,
+            beatIds: item.beatIds.filter((id) => beats.has(id)),
+          };
+        };
+        const relink = (graph) =>
+          graph && {
+            ...graph,
+            nodes: graph.nodes.map(keep),
+            edges: graph.edges.map(keep),
+          };
+        const after = relink(d.after);
+        const before = relink(d.before);
+        return {
+          ...d,
+          after,
+          ...(before ? { before } : {}),
+          stale:
+            orphaned ||
+            (0, diagram_validate_js_1.diagramIsStale)(
+              d,
+              sources.readSource,
+              sources.revisions,
+            ),
+        };
+      });
+    return {
+      items,
+      skips: Object.values(records.skips).filter((s) => stopIds.has(s.stopId)),
+      signals: plan.stops.map((stop) =>
+        (0, diagram_signals_js_1.computeDiagramSignals)(
+          stop,
+          sources.readSource,
+          {
+            existingDiagrams: items.filter(
+              (d) => d.stopId === stop.id && d.origin === "auto",
+            ).length,
+            maxPerStop: settings.maxPerStop,
+          },
+        ),
+      ),
+    };
+  }
+  /** Append diagram events at the latest revision; diagrams are presentation
+   * artifacts, so a concurrent writer is retried rather than reported. */
+  appendDiagramEvents(workspace, mapId, actor, build) {
+    const { repository } = this.locate(workspace, mapId);
+    for (let attempt = 0; ; attempt++) {
+      const state = this.store.load(repository.repositoryKey, mapId);
+      try {
+        return this.store.mutate(
+          repository.repositoryKey,
+          mapId,
+          state.aggregateRevision,
+          actor || DIAGRAM_ACTOR,
+          build,
+        );
+      } catch (error) {
+        if (
+          attempt < 2 &&
+          (0, input_js_1.errorFields)(error).code === "revision_conflict"
+        )
+          continue;
+        throw error;
+      }
+    }
+  }
+  diagramPut(args, options = {}) {
+    const settings = (0, diagram_js_1.readDiagramSettings)(args.settings);
+    (0, errors_js_1.invariant)(
+      settings.mode !== "off",
+      "diagrams_off",
+      "Diagrams are turned off in kanko.diagrams.mode. Answer in text and add one line saying diagrams are off.",
+    );
+    const input = (0, input_js_1.isRecord)(args.diagram) ? args.diagram : {};
+    (0, errors_js_1.invariant)(
+      !(settings.mode === "onRequest" && input.origin === "auto"),
+      "diagrams_on_request",
+      "kanko.diagrams.mode is onRequest; draw only when the reviewer asks.",
+    );
+    const { state } = this.locate(args.workspace, args.mapId);
+    const fresh = this.freshness(state);
+    (0, errors_js_1.invariant)(
+      fresh.freshness === "current",
+      "stale_change",
+      "Refresh the review map before drawing changed sources.",
+      fresh,
+    );
+    const plan = state.tourPlans[state.currentTourPlanId || ""];
+    (0, errors_js_1.invariant)(
+      plan,
+      "invalid_tour_plan",
+      "Create a tour plan before drawing.",
+    );
+    const sources = (0, tour_sources_js_1.tourSources)(
+      state.repository.workspace,
+      currentChange(state),
+    );
+    const checked = (0, diagram_validate_js_1.validateDiagram)(input, {
+      readSource: sources.readSource,
+      revisions: sources.revisions,
+      stops: plan.stops,
+      claims: Object.values(state.entities.claims),
+      derivedOnly: settings.derivedOnly,
+    });
+    (0, errors_js_1.invariant)(
+      checked.ok,
+      "invalid_diagram",
+      "Fix diagram validation findings before attaching it.",
+      { findings: checked.findings },
+    );
+    const valid = checked.diagram;
+    const records = state.diagrams || { items: {}, skips: {} };
+    if (valid.replaces)
+      (0, errors_js_1.invariant)(
+        records.items[valid.replaces] &&
+          !records.items[valid.replaces].supersededBy,
+        "diagram_not_found",
+        `cannot redraw unknown or superseded diagram ${valid.replaces}`,
+      );
+    if (valid.origin === "auto") {
+      const existing = Object.values(records.items).filter(
+        (d) =>
+          d.stopId === valid.stopId &&
+          d.origin === "auto" &&
+          !d.supersededBy &&
+          d.id !== valid.replaces,
+      ).length;
+      (0, errors_js_1.invariant)(
+        existing < settings.maxPerStop,
+        "diagram_budget",
+        `Stop ${valid.stopId} already has ${existing} automatic diagram${existing === 1 ? "" : "s"}; kanko.diagrams.maxPerStop is ${settings.maxPerStop}.`,
+      );
+    }
+    const diagramId = options.id || (0, canonical_js_1.id)("dgm");
+    (0, errors_js_1.invariant)(
+      DIAGRAM_ID.test(diagramId) && !records.items[diagramId],
+      "invalid_diagram",
+      `diagram id ${diagramId} is invalid or already used`,
+    );
+    const diagram = {
+      ...valid,
+      id: diagramId,
+      pinned: valid.pinned === true,
+      sourceHash: (0, diagram_validate_js_1.diagramSourceHash)(valid),
+      createdAt: new Date().toISOString(),
+    };
+    const result = this.appendDiagramEvents(
+      args.workspace,
+      args.mapId,
+      args.actor,
+      () => [{ eventType: "DiagramAdded", payload: { diagram } }],
+    );
+    return {
+      diagramId,
+      aggregateRevision: result.state.aggregateRevision,
+      diagram: { ...diagram, stale: false },
+      findings: checked.findings,
+    };
+  }
+  diagramSkip(args) {
+    const { state } = this.locate(args.workspace, args.mapId);
+    const plan = state.tourPlans[state.currentTourPlanId || ""];
+    (0, errors_js_1.invariant)(
+      plan?.stops.some((stop) => stop.id === args.stopId),
+      "stop_not_found",
+      `stop not found: ${args.stopId}`,
+    );
+    (0, errors_js_1.invariant)(
+      args.reason.trim().length > 0 && args.reason.length <= 300,
+      "missing_reason",
+      "Record one plain sentence saying why this stop has no diagram.",
+    );
+    const skip = {
+      stopId: args.stopId,
+      reason: args.reason.trim(),
+      recordedAt: new Date().toISOString(),
+    };
+    const result = this.appendDiagramEvents(
+      args.workspace,
+      args.mapId,
+      args.actor,
+      () => [{ eventType: "DiagramSkipped", payload: { skip } }],
+    );
+    return {
+      ok: true,
+      aggregateRevision: result.state.aggregateRevision,
+      skip,
+    };
+  }
+  diagramPin(args) {
+    const { state } = this.locate(args.workspace, args.mapId);
+    const diagram = state.diagrams?.items[args.diagramId];
+    (0, errors_js_1.invariant)(
+      diagram,
+      "diagram_not_found",
+      `diagram not found: ${args.diagramId}`,
+    );
+    const plan = state.tourPlans[state.currentTourPlanId || ""];
+    (0, errors_js_1.invariant)(
+      plan?.stops.some((stop) => stop.id === args.stopId),
+      "stop_not_found",
+      `stop not found: ${args.stopId}`,
+    );
+    if (diagram.pinned && diagram.stopId === args.stopId)
+      return { ok: true, aggregateRevision: state.aggregateRevision };
+    const result = this.appendDiagramEvents(
+      args.workspace,
+      args.mapId,
+      args.actor,
+      () => [
+        {
+          eventType: "DiagramPinned",
+          payload: { diagramId: args.diagramId, stopId: args.stopId },
+        },
+      ],
+    );
+    return { ok: true, aggregateRevision: result.state.aggregateRevision };
+  }
+  diagramFeedback(args) {
+    const { state } = this.locate(args.workspace, args.mapId);
+    (0, errors_js_1.invariant)(
+      state.diagrams?.items[args.diagramId],
+      "diagram_not_found",
+      `diagram not found: ${args.diagramId}`,
+    );
+    const result = this.appendDiagramEvents(
+      args.workspace,
+      args.mapId,
+      args.actor,
+      () => [
+        {
+          eventType: "DiagramFeedbackRecorded",
+          payload: { diagramId: args.diagramId, value: args.value },
+        },
+      ],
+    );
+    return { ok: true, aggregateRevision: result.state.aggregateRevision };
   }
   open(args) {
     (0, domain_js_1.validateActor)(args.actor);
@@ -352,6 +630,7 @@ class ReviewMapService {
         freshness: this.freshness(state).freshness,
       };
     }
+    if (selector.kind === "diagrams") return this.diagramProjection(state);
     if (selector.kind === "storage")
       return this.store.inspect(repository.repositoryKey, state.id);
     throw new errors_js_1.ReviewMapError(
@@ -512,6 +791,9 @@ class ReviewMapService {
       changed: (0, domain_js_1.projectionOverview)(result.state),
       warnings,
       findings,
+      ...(commands.some((command) => command.type === "CreateTourPlan")
+        ? { diagramSignals: this.diagramProjection(result.state).signals }
+        : {}),
     };
   }
   check(args) {

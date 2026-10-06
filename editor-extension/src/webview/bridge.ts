@@ -9,6 +9,8 @@ export interface SidebarState {
   snapshot: TourSnapshot;
   error: string;
   selection: Extract<HostMessage, { type: "selectAnchor" }> | null;
+  /** The expanded diagram panel's subject. */
+  panel: Omit<Extract<HostMessage, { type: "panel" }>, "type"> | null;
 }
 
 export function createBridge(
@@ -19,13 +21,16 @@ export function createBridge(
     snapshot: { loaded: false, revision: 0 },
     error: "",
     selection: null,
+    panel: null,
   };
   const listeners = new Set<() => void>();
   const receive = ({ data }: MessageEvent<HostMessage>) => {
     if (data.type === "snapshot") {
       if (data.snapshot.revision < state.snapshot.revision) return;
-      state = { snapshot: data.snapshot, error: "", selection: null };
-    } else if (data.type === "error") state = { ...state, error: data.message };
+      state = { ...state, snapshot: data.snapshot, error: "", selection: null };
+    } else if (data.type === "panel")
+      state = { ...state, panel: { view: data.view, follow: data.follow } };
+    else if (data.type === "error") state = { ...state, error: data.message };
     else if (data.type === "selectAnchor")
       state = { ...state, selection: data };
     else return;

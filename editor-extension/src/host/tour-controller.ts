@@ -14,10 +14,20 @@ export interface ControllerDependencies {
     body: Record<string, unknown>,
     state: TourState,
   ): PromiseLike<PresentationSnapshot>;
+  /** Lays out stored diagrams from the load body before the tour appears. */
+  prepareDiagrams?(
+    body: unknown,
+    prepared: PreparedTour,
+  ): DiagramState | PromiseLike<DiagramState>;
 }
 export type TourController = ReturnType<typeof createTourController>;
 
 import { renderNarration } from "../../../generated/shared/narration.js";
+import {
+  diagramSnapshot,
+  emptyDiagramState,
+  type DiagramState,
+} from "./diagrams.js";
 const fail = (code: ErrorCode, message: string, details?: unknown) =>
   Object.assign(new Error(message), { code, details });
 
@@ -28,6 +38,7 @@ function createTourController({
   clear,
   publish,
   layoutAction,
+  prepareDiagrams = () => emptyDiagramState(),
 }: ControllerDependencies) {
   let current: TourState | null = null,
     revision = 0;
@@ -58,6 +69,12 @@ function createTourController({
         beat.narration,
         stop.anchors,
         "receipt",
+      ),
+      diagrams: diagramSnapshot(
+        state.diagrams || emptyDiagramState(),
+        state.plan,
+        stop,
+        state.presentation?.anchors,
       ),
     });
   }
@@ -99,12 +116,39 @@ function createTourController({
         revision++;
         publish(snapshot());
       }),
+    /** The loaded tour's diagram state, for local diagram actions. */
+    diagrams: () => current?.diagrams,
+    plan: () => current?.plan,
+    workspace: () => current?.workspace,
+    updateDiagrams: (
+      tourId: unknown,
+      change: (
+        diagrams: DiagramState,
+        state: TourState,
+      ) => DiagramState | PromiseLike<DiagramState>,
+    ) =>
+      run(async () => {
+        const state = guard(undefined);
+        if (tourId !== undefined && tourId !== state.tourId)
+          throw fail("no_tour", "A different tour is loaded.");
+        const diagrams = await change(
+          state.diagrams || emptyDiagramState(),
+          state,
+        );
+        current = { ...state, diagrams };
+        revision++;
+        const value = snapshot();
+        publish(value);
+        return value;
+      }),
     load: (body: unknown) =>
       run(async () => {
         const validated = await prepare(body);
+        const diagrams = await prepareDiagrams(body, validated);
         const first = validated.plan.stops[0].beats[0];
         return commit({
           ...validated,
+          diagrams,
           stopIndex: 0,
           beatIndex: 0,
           mode: "following",

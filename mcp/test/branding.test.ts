@@ -93,9 +93,13 @@ test(
       "kanko",
     );
     const advertised = records((await rpc("tools/list", {})).tools);
-    assert.equal(advertised.length, 12);
+    assert.equal(advertised.length, 17);
     assert.ok(
-      advertised.every((tool) => /^kanko_(map|tour)_/.test(string(tool.name))),
+      advertised.every((tool) =>
+        /^kanko_(?:(?:map|tour|diagram)_|await_reviewer$)/.test(
+          string(tool.name),
+        ),
+      ),
     );
     const actor = { kind: "agent", id: "branding-test" };
     const opened = await call("kanko_map_open", {

@@ -42,7 +42,7 @@ module.exports = function register({ test, before }) {
           authorization: `Bearer ${lock.authToken}`,
           "content-type": "application/json",
         },
-        body: JSON.stringify({ ...body, protocolVersion: 3 }),
+        body: JSON.stringify({ ...body, protocolVersion: 4 }),
       })
     ).json();
   const tabs = () =>

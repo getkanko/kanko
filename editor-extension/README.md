@@ -49,7 +49,7 @@ Exploring. Layout placement and restoration remain later phases.
 The extension starts a loopback HTTP server with a per-session authentication
 token. The local MCP server discovers it through a lockfile under
 `~/.kanko/tour`. It lets the agent open files, navigate authored beats, and change presentation mode within your workspace.
-Bridge protocol 3 is required on both sides.
+Bridge protocol 4 is required on both sides.
 
 [Report an issue](https://github.com/getkanko/kanko/issues)
 with your VS Code version and whether you use a local or remote workspace.

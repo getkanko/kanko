@@ -41,6 +41,16 @@ operations. Invalid plans return findings before changing the current display.
 Up to three active anchors are presented with matching numbered colors, labels,
 and tab badges. Layout placement and the complete anchor list are subsequent phases.
 
+When a picture explains a stop better than prose, the agent attaches a
+**diagram** — a flow, sequence, state machine, data flow, or timeline — under
+the beat narration. The current beat's nodes are highlighted, clicking a node
+moves the editor to its code, and **Open beside code** shows the diagram in its
+own tab with Before, After, and Diff views. Every diagram says where it came
+from: `derived` from code or a trace, `inferred` when sketched (dashed, never
+proof), or `stale` once its code changes. Choose when diagrams appear with
+`kanko.diagrams.mode` (`auto`, `onRequest`, `off`); see
+[agent-drawn diagrams](docs/diagrams/kanko-agent-diagrams-spec.md).
+
 Questions, concerns, and decisions become sourced review map entries when they
 matter beyond the current conversation. At closeout you can save an immutable
 JSON and Markdown receipt covering what was reviewed, what evidence was
@@ -223,12 +233,17 @@ on Windows, and `$XDG_STATE_HOME/kanko` (or `~/.local/state/kanko`) on Linux.
 | `kanko_map_refresh` | Adds a change revision and conservatively invalidates stale review state |
 | `kanko_map_receipt` | Previews or emits immutable local JSON and Markdown receipts |
 | `kanko_map_delete` | Permanently deletes one explicitly confirmed local review map |
+| `kanko_diagram_put` | Validates a diagram against pinned sources, stores it on its stop, and shows it |
+| `kanko_diagram_skip` | Records why a stop has no automatic diagram |
+| `kanko_diagram_stream` | Streams a requested diagram into a detour, then stores it |
+| `kanko_diagram_pin` | Pins a requested diagram to a stop for future reviewers |
+| `kanko_await_reviewer` | Collects editor events: diagram requests, feedback, and pins |
 
 Kankō v2's stop, anchor, and beat authoring contract is documented in
 [the tour model guide](docs/kanko-v2-tour-model.md). It validates plans before
 storage. [Multi-anchor presentation](docs/kanko-v2-multi-anchor.md) describes source
 identity and tab ownership. [Loading and navigation](docs/kanko-v2-tour-loading.md) use bridge
-protocol 3; the old stop/focus tools and routes have been removed.
+protocol 4; the old stop/focus tools and routes have been removed.
 
 **The bridge has no write verb.** No endpoint modifies a file, so "installing
 this extension cannot alter your repository" is a property of the software

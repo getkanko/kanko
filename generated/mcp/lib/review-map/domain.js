@@ -813,7 +813,39 @@ function applyEvent(state, event) {
     } else if (eventType === "DriftDetected")
       currentRevision(state).state = "stale";
     else if (eventType === "ReceiptEmitted") state.receipts.push(p.receiptRef);
-    else if (eventType === "ReviewMapArchived") {
+    else if (eventType === "DiagramAdded") {
+      const records = (state.diagrams ||= { items: {}, skips: {} });
+      const replaced = p.diagram.replaces && records.items[p.diagram.replaces];
+      if (replaced) replaced.supersededBy = p.diagram.id;
+      records.items[p.diagram.id] = clone(p.diagram);
+      if (p.diagram.origin === "auto") delete records.skips[p.diagram.stopId];
+    } else if (eventType === "DiagramSkipped") {
+      const records = (state.diagrams ||= { items: {}, skips: {} });
+      records.skips[p.skip.stopId] = clone(p.skip);
+    } else if (eventType === "DiagramPinned") {
+      const diagram = state.diagrams?.items[p.diagramId];
+      (0, errors_js_1.invariant)(
+        diagram,
+        "corrupt_history",
+        `diagram not found: ${p.diagramId}`,
+      );
+      if (diagram.stopId !== p.stopId) {
+        // Beats belong to the original stop.
+        diagram.stopId = p.stopId;
+        for (const graph of [diagram.after, diagram.before])
+          for (const item of [...(graph?.nodes || []), ...(graph?.edges || [])])
+            delete item.beatIds;
+      }
+      diagram.pinned = true;
+    } else if (eventType === "DiagramFeedbackRecorded") {
+      const diagram = state.diagrams?.items[p.diagramId];
+      (0, errors_js_1.invariant)(
+        diagram,
+        "corrupt_history",
+        `diagram not found: ${p.diagramId}`,
+      );
+      diagram.feedback = p.value;
+    } else if (eventType === "ReviewMapArchived") {
       state.phase = "archived";
       state.archivedAt = event.occurredAt;
     } else

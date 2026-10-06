@@ -181,6 +181,44 @@ compact review map briefing: thesis, claim dispositions, highest risks, evidence
 freshness, stop coverage, and which rationale is reconstructed. Start a review
 session with `kanko_map_apply` and keep its session ID.
 
+### 3a. Decide diagrams
+
+After `CreateTourPlan`, the result's `diagramSignals` lists, per stop, the
+deterministic draw signals (`branches` → `flow`, `call_path` → `sequence`,
+`states` → `state`, `value_flow` → `dataflow`, `timing` → `timeline`), skip
+signals (formatting only, one line, config only, tests only, budget), and a
+recommendation. They are heuristics over changed lines; you make the call. Read
+them again with `kanko_map_get` and the `diagrams` selector.
+
+In `auto` mode (the default), call `kanko_diagram_put` or `kanko_diagram_skip`
+for **every** stop before loading the tour:
+
+- Write `reason` as one plain sentence about the change, not about diagrams in
+  general: "adds 3 branches to one function", "adds 2 counters and no new
+  control flow".
+- Pick one kind. If two fit, prefer the one you can derive from code or a
+  trace over one you would sketch.
+- Prefer `derived` (`static-analysis` or `trace`). A derived diagram must
+  anchor every node to exact lines in the review map's pinned revisions, using
+  the same `{path, side, context, contentHash}` hashing as tour anchors. Sketch
+  (`inferred` with `agent-sketch`) only for concepts code analysis can't reach,
+  and say so in `reason`.
+- Give nodes stable ids derived from the construct, not their position: symbol
+  plus a condition fingerprint for `flow`, the state constant for `state`,
+  participant plus call symbol for `sequence`. Include a `before` graph when a
+  meaningful before exists; matching ids produce the Diff view.
+- Map each beat to at most three nodes with `beatIds`, and anchor those nodes
+  to the lines that beat's active anchors show. A diagram whose nodes don't
+  line up with beats probably belongs to a different stop.
+- Cite claims with `claimIds`; a diagram never upgrades a claim's status.
+- Never draw to decorate. Skip when the picture would have fewer than four
+  nodes or would restate the code line by line.
+
+`onRequest` mode rejects automatic diagrams; `off` rejects every diagram. When
+diagrams are off, answer a drawing request in text and add one line saying
+diagrams are turned off. Fix `invalid_diagram` findings before retrying; never
+weaken provenance to get a diagram accepted.
+
 ### 4. Narrate one stop at a time
 
 In a driven tour, call `kanko_tour_load` with `workspace` and `mapId` once
@@ -233,6 +271,25 @@ arrives?" Respect a request to skip prompts. If an answer reveals a gap, revisit
 the example or prerequisite; do not turn the tour into a compulsory exam.
 Neither a correct answer nor "next" establishes approval. Do not record prompts
 or answers as evidence that the implementation is correct.
+
+At each stop boundary and whenever the reviewer replies, call
+`kanko_await_reviewer` with `timeoutMs: 0` to collect editor events:
+
+- `diagram_request` (**Draw one anyway** or **Redraw at <sha>**): answer it
+  with `kanko_diagram_stream`, using the event `id` as `detourId`. Send `kind`,
+  `title`, and the axis or first nodes first, with a short `status` such as
+  "Reading policy.go and deadline.go", then upsert the rest by id. The final
+  patch (`final: true`) must carry the complete diagram; it is validated and
+  stored as `requested`. A redraw request carries `replaces`; pass it through.
+- `diagram_feedback` (**Not helpful**): don't draw for that stop again unless
+  asked.
+- `diagram_pinned`: already saved; no action needed.
+
+When the reviewer asks for a drawing in conversation ("draw it", "show me a
+diagram"), stream it the same way with a new `detourId` and their words as
+`question`. Use `kanko_diagram_pin` only if the reviewer asks you to pin.
+Diagram events never change review state; record questions and answers as
+usual.
 
 Then **stop and wait**. The reviewer may ask a question, ask for more depth,
 say "next", "back", or jump to a named stop. Don't advance without one of

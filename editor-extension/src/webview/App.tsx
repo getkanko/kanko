@@ -7,13 +7,14 @@ import { TourNavigation } from "./components/TourNavigation.js";
 import { AnchorList } from "./components/AnchorList.js";
 import { PlacementPicker } from "./components/PlacementPicker.js";
 import { Narration } from "./components/Narration.js";
+import { DetourPanel, StopDiagrams, TourMap } from "./components/Diagrams.js";
 
 import { useAnchorList } from "./hooks/useAnchorList.js";
 import { usePlacement } from "./hooks/usePlacement.js";
 import { useSidebarShortcuts } from "./hooks/useSidebarShortcuts.js";
 
 export function App({ bridge }: { bridge: SidebarBridge }) {
-  const { snapshot, error, selection } = useSyncExternalStore(
+  const { snapshot, error, selection, panel } = useSyncExternalStore(
     bridge.subscribe,
     bridge.getState,
   );
@@ -29,7 +30,9 @@ export function App({ bridge }: { bridge: SidebarBridge }) {
           ? String(snapshot.title ?? "")
           : "Your tour, one beat at a time."}
       </h1>
-      {snapshot.loaded ? (
+      {snapshot.loaded && snapshot.diagrams.detour ? (
+        <DetourPanel snapshot={snapshot} send={bridge.send} />
+      ) : snapshot.loaded ? (
         <StopView
           key={`${snapshot.tourId}:${snapshot.stop.id}`}
           snapshot={snapshot}
@@ -37,6 +40,7 @@ export function App({ bridge }: { bridge: SidebarBridge }) {
           bridge={bridge}
           order={order}
           setOrder={setOrder}
+          openDiagram={panel?.view?.id ?? null}
         />
       ) : (
         <p id="empty">Load a tour from your agent to begin.</p>
@@ -54,12 +58,14 @@ function StopView({
   bridge,
   order,
   setOrder,
+  openDiagram,
 }: {
   snapshot: LoadedTourSnapshot;
   selection: SidebarState["selection"];
   bridge: SidebarBridge;
   order: model.ListOrder;
   setOrder(order: model.ListOrder): void;
+  openDiagram: string | null;
 }) {
   const rows = model.rows(snapshot);
   const paused = snapshot.mode === "paused";
@@ -220,6 +226,11 @@ function StopView({
         paused={paused}
         select={select}
       />
+      <StopDiagrams
+        snapshot={snapshot}
+        send={bridge.send}
+        openId={openDiagram}
+      />
       <p
         id="sequence-note"
         className="muted"
@@ -236,6 +247,7 @@ function StopView({
       <p id="warnings" className="muted">
         {notes}
       </p>
+      <TourMap snapshot={snapshot} send={bridge.send} />
       <TourNavigation
         snapshot={snapshot}
         navigate={(action) => bridge.send({ type: "navigate", action })}

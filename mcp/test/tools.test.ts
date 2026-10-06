@@ -20,6 +20,11 @@ test("the public tools use the complete-tour workflow", () => {
       "kanko_tour_set_state",
       "kanko_tour_clear",
       "kanko_tour_status",
+      "kanko_diagram_put",
+      "kanko_diagram_skip",
+      "kanko_diagram_stream",
+      "kanko_diagram_pin",
+      "kanko_await_reviewer",
     ].sort(),
   );
   for (const tool of TOOLS) {

@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://getkanko.dev/kanko/schemas/diagram.schema.json",
+  "title": "Kankō agent-drawn diagram",
+  "description": "A diagram attached to one tour stop. The service assigns id, pinned, sourceHash, and createdAt.",
+  "type": "object",
+  "required": [
+    "kind",
+    "title",
+    "stopId",
+    "origin",
+    "reason",
+    "provenance",
+    "after"
+  ],
+  "properties": {
+    "kind": { "enum": ["flow", "sequence", "state", "dataflow", "timeline"] },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "For example: How a failed send is classified."
+    },
+    "stopId": { "type": "string", "minLength": 1 },
+    "origin": {
+      "enum": ["auto", "requested"],
+      "description": "auto for tour preparation; requested when the reviewer asked."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "One plain sentence about the change, such as: adds 3 branches to one function."
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["status", "method", "sources", "revs"],
+      "properties": {
+        "status": {
+          "enum": ["derived", "inferred"],
+          "description": "inferred means sketched by the agent."
+        },
+        "method": {
+          "enum": ["static-analysis", "trace", "agent-sketch"],
+          "description": "agent-sketch if and only if status is inferred."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "symbol": { "type": "string" },
+              "traceId": { "type": "string" }
+            }
+          }
+        },
+        "revs": {
+          "type": "object",
+          "required": ["after"],
+          "properties": {
+            "before": {
+              "type": "string",
+              "description": "The review map's pinned base revision; required with a before graph."
+            },
+            "after": {
+              "type": "string",
+              "description": "The review map's pinned head revision."
+            }
+          }
+        }
+      }
+    },
+    "before": { "$ref": "#/$defs/graph" },
+    "after": { "$ref": "#/$defs/graph" },
+    "pinned": { "type": "boolean" },
+    "replaces": {
+      "type": "string",
+      "description": "The diagram id this redraws."
+    },
+    "detourId": { "type": "string" }
+  },
+  "$defs": {
+    "range": {
+      "type": "object",
+      "required": ["startLine", "endLine"],
+      "properties": {
+        "startLine": { "type": "integer", "minimum": 1 },
+        "endLine": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "required": ["path", "side", "context", "contentHash"],
+      "description": "Lines in the review map's pinned revisions. Hash exactly the context lines joined by LF.",
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "side": { "enum": ["base", "head"] },
+        "context": { "$ref": "#/$defs/range" },
+        "contentHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "symbol": { "type": "string" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "label", "shape"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[\\w.:#@/+-]{1,128}$",
+          "description": "Stable across before and after: symbol plus condition fingerprint for flow, the state constant for state, participant plus call symbol for sequence."
+        },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "sublabel": { "type": "string", "maxLength": 120 },
+        "shape": {
+          "enum": [
+            "start",
+            "decision",
+            "action",
+            "terminal",
+            "state",
+            "participant",
+            "span"
+          ]
+        },
+        "anchor": {
+          "$ref": "#/$defs/anchor",
+          "description": "Required for every node of a derived diagram."
+        },
+        "beatIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Beats that highlight this node; at most three nodes per beat."
+        },
+        "claimIds": { "type": "array", "items": { "type": "string" } },
+        "span": {
+          "type": "object",
+          "required": ["lane", "start", "end"],
+          "properties": {
+            "lane": { "type": "string" },
+            "start": { "type": "number" },
+            "end": { "type": "number" },
+            "style": { "enum": ["solid", "ghost"] }
+          }
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["id", "from", "to"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[\\w.:#@/+-]{1,128}$" },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "label": { "type": "string", "maxLength": 80 },
+        "kind": {
+          "enum": ["flow", "call", "return", "transition", "data", "wait"]
+        },
+        "order": { "type": "integer", "minimum": 0 },
+        "beatIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "graph": {
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "maxItems": 40,
+          "items": { "$ref": "#/$defs/node" }
+        },
+        "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
+        "lanes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" }
+            }
+          }
+        },
+        "axis": {
+          "type": "object",
+          "required": ["unit", "min", "max"],
+          "properties": {
+            "unit": { "enum": ["ms", "s"] },
+            "min": { "type": "number" },
+            "max": { "type": "number" },
+            "marks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["at", "label"],
+                "properties": {
+                  "at": { "type": "number" },
+                  "label": { "type": "string" },
+                  "kind": { "enum": ["deadline", "event"] }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
