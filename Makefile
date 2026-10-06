@@ -25,13 +25,13 @@ help:
 	  'make version-sync             Repair manifest/runtime copies without bumping' \
 	  'make bump VERSION=patch       Bump patch, minor, major, or an exact X.Y.Z' \
 	  'make release-check            Validate release readiness without creating a tag' \
-	  'make release                  Tag and push from clean, current main; PUBLISHES publicly'
+	  'make release                  Tag and push from clean, current main (stable) or dev (candidate); PUBLISHES publicly'
 
 setup:
 	@command -v jq >/dev/null || { echo 'error: Install jq first' >&2; exit 1; }
 	@command -v python3 >/dev/null || { echo 'error: Python 3 is required' >&2; exit 1; }
 	@node -e 'if (+process.versions.node.split(".")[0] < 22) throw Error("Node.js 22+ required")'
-	npm --prefix editor-extension ci
+	npm --prefix editor-extension ci --include=dev
 
 check: version-check runtime-check typecheck format-check
 

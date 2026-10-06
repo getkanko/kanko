@@ -282,7 +282,10 @@ test("all required inventory counts retain accessible role labels and bounded ro
         `${count} ${count === 1 ? "anchor" : "anchors"} · 1 in view`,
       ),
     );
-    if (count === 1) assert.ok(screen.getByText("src/file-1.ts:1–10 · change"));
+    if (count === 1)
+      assert.ok(
+        screen.getByText(/^src\/file-1\.ts:1–10 · change · This beat · /),
+      );
     else
       assert.ok(button("Change: focus anchor 1").dataset.tooltip === "Change");
     if (count >= 5) {

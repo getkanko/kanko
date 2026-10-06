@@ -36,7 +36,7 @@ jobs:
       - run: make setup
       - name: Validate release metadata
         run: make version-check
-      - name: Validate release tag and main ancestry
+      - name: Validate release tag and branch ancestry
         if: startsWith(github.ref, 'refs/tags/') || inputs.publish
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -44,7 +44,11 @@ jobs:
         run: |
           test "$REF_TYPE" = tag
           make version-check TAG="$RELEASE_TAG"
-          git merge-base --is-ancestor HEAD origin/main
+          case "$RELEASE_TAG" in
+            *-*) branch=dev ;;
+            *) branch=main ;;
+          esac
+          git merge-base --is-ancestor HEAD "origin/$branch" || { echo "::error::$RELEASE_TAG must be reachable from $branch"; exit 1; }
       - name: Check runtime, types and formatting
         run: make check
       - name: Test repository and extension

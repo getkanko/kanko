@@ -33,8 +33,10 @@ masters are retained as source assets for future use.
    checksum to a GitHub release.
 
 Tags must match `v<plugin.json version>` exactly and point to a commit
-reachable from `origin/main`. Only stable `major.minor.patch` versions are
-accepted. Pre-release channels and Open VSX publishing are not configured.
+reachable from `origin/main` (stable `major.minor.patch`) or `origin/dev`
+(candidates with a prerelease suffix such as `0.1.1-rc1`). A stable tag cannot
+be cut from `dev`, and a candidate tag cannot be cut from `main`. Open VSX
+publishing is not configured.
 A failure in packaging or tests prevents publishing. PR jobs have read-only
 repository permissions and no publishing credentials. Only the Marketplace
 job receives `VSCE_PAT`; only the GitHub release job can write releases.
@@ -112,7 +114,8 @@ The layout spike's private test extension also keeps its own fixture version.
 Before tagging, confirm that the selected version has not already been published
 in the Marketplace. Published versions cannot be reused.
 
-After merging and checking CI, tag the release from the updated `main`:
+After merging and checking CI, tag a stable release from the updated `main`
+(or a candidate such as `0.1.1-rc1` from the updated `dev`):
 
 ```sh
 git switch main

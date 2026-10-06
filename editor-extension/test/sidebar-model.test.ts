@@ -1,6 +1,7 @@
 import { snapshot as uiSnapshot } from "./ui/snapshot.js";
 import { anchor } from "./factories.js";
 import type { AnchorRole } from "../src/shared/tour.js";
+import type { AnchorStatus } from "../src/shared/snapshot.js";
 import test = require("node:test");
 import assert = require("node:assert/strict");
 import * as model from "../src/shared/sidebar-model.js";
@@ -48,6 +49,35 @@ test("all stop anchors retain identity across beats, including unopened and inac
   assert.deepEqual(
     new Set(first.map((r) => r.role)),
     new Set(Object.keys(model.roles)),
+  );
+});
+test("beat references and editor visibility have independent text labels", () => {
+  const s = snapshot(4, [1, 3, 4]);
+  const state = (n: number, status: AnchorStatus) => ({
+    n,
+    path: `src/file-${n}.js`,
+    status,
+    column: null,
+    source: "file",
+    companionColumn: null,
+    removedCode: null,
+  });
+  s.presentation!.anchors = [state(3, "open"), state(4, "not-open")];
+  const rows = model.rows(s);
+  assert.equal(model.presentationLabel(rows[0]), "This beat · In view · top");
+  assert.equal(model.presentationLabel(rows[1]), "In view · bottom left");
+  assert.equal(
+    model.presentationLabel(rows[2]),
+    "This beat · Open in another tab",
+  );
+  assert.equal(model.presentationLabel(rows[3]), "This beat · Not open");
+  assert.equal(
+    model.beatFiles(rows),
+    "This beat: 1 · file-1.js, 3 · file-3.js, 4 · file-4.js",
+  );
+  assert.equal(
+    model.beatFiles(model.rows(snapshot(1, []))),
+    "This beat: No files referenced",
   );
 });
 test("compact stops stay ordered; larger stops put In view before every remaining role", () => {

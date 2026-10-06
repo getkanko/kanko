@@ -6,30 +6,58 @@ cd "$root"
 fail() { echo "error: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null || fail "$1 is not on PATH"; }
 validate_version() {
-  local value="$1" part
-  [[ "$value" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'Use a stable major.minor.patch version'
+  local value="$1" core part id
+  local ident='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+  [[ "$value" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-$ident(\.$ident)*)?$ ]] || fail 'Use a major.minor.patch version with an optional SemVer prerelease suffix'
+  core="${value%%-*}"
   local parts
-  IFS=. read -r -a parts <<< "$value"
+  IFS=. read -r -a parts <<< "$core"
   for part in "${parts[@]}"; do
     [ "${#part}" -le 16 ] && [ "$part" -le 9007199254740991 ] || fail 'Version component exceeds the safe integer range'
   done
 }
+is_candidate() { [[ "$1" == *-* ]]; }
+# Succeeds when $1 has strictly higher SemVer precedence than $2.
+version_greater() {
+  local a="$1" b="$2" core_a core_b pre_a pre_b i x y
+  core_a="${a%%-*}"; core_b="${b%%-*}"
+  pre_a=""; pre_b=""
+  is_candidate "$a" && pre_a="${a#*-}"
+  is_candidate "$b" && pre_b="${b#*-}"
+  local -a na nb ia ib
+  IFS=. read -r -a na <<< "$core_a"
+  IFS=. read -r -a nb <<< "$core_b"
+  for i in 0 1 2; do
+    (( na[i] > nb[i] )) && return 0
+    (( na[i] < nb[i] )) && return 1
+  done
+  [ -z "$pre_a" ] && [ -z "$pre_b" ] && return 1
+  [ -z "$pre_a" ] && return 0
+  [ -z "$pre_b" ] && return 1
+  IFS=. read -r -a ia <<< "$pre_a"
+  IFS=. read -r -a ib <<< "$pre_b"
+  for ((i = 0; i < ${#ia[@]} && i < ${#ib[@]}; i++)); do
+    x="${ia[$i]}"; y="${ib[$i]}"
+    [ "$x" = "$y" ] && continue
+    if [[ "$x" =~ ^[0-9]+$ && "$y" =~ ^[0-9]+$ ]]; then (( x > y )) && return 0 || return 1; fi
+    [[ "$x" =~ ^[0-9]+$ ]] && return 1
+    [[ "$y" =~ ^[0-9]+$ ]] && return 0
+    [[ "$x" > "$y" ]] && return 0 || return 1
+  done
+  (( ${#ia[@]} > ${#ib[@]} ))
+}
 next_version() {
-  local current="$1" bump="$2" major minor patch next_major next_minor next_patch
+  local current="$1" bump="$2" major minor patch
   validate_version "$current"
-  IFS=. read -r major minor patch <<< "$current"
+  IFS=. read -r major minor patch <<< "${current%%-*}"
   case "$bump" in
     major) bump="$((major + 1)).0.0" ;;
     minor) bump="$major.$((minor + 1)).0" ;;
     patch) bump="$major.$minor.$((patch + 1))" ;;
   esac
   validate_version "$bump"
-  IFS=. read -r next_major next_minor next_patch <<< "$bump"
-  if (( next_major > major || (next_major == major && next_minor > minor) || (next_major == major && next_minor == minor && next_patch > patch) )); then
-    printf '%s\n' "$bump"
-  else
-    fail 'New version must be greater than the current version'
-  fi
+  version_greater "$bump" "$current" || fail 'New version must be greater than the current version'
+  printf '%s\n' "$bump"
 }
 
 main() {

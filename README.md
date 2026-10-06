@@ -368,7 +368,7 @@ If runtime generation fails after updating metadata, fix the build and run
 changelog entries, test fixtures, and protocol/schema compatibility numbers
 are independent; do not replace every matching version string in the repository.
 
-### 3. Publish the reviewed version from main
+### 3. Publish the reviewed version from main (or dev for a candidate)
 
 ```sh
 git switch main
@@ -378,7 +378,9 @@ make release        # Create and push the annotated vX.Y.Z tag
 ```
 
 **`make release` triggers public Marketplace and GitHub publication.** It requires
-a clean `main` checkout matching `origin/main`, synchronized metadata and runtime,
+a clean checkout matching its origin branch (`main` for stable versions, `dev`
+for candidates with a prerelease suffix such as `0.1.1-rc1`; the other branch is
+rejected), synchronized metadata and runtime,
 and a version tag that does not already exist. It never bumps the version or
 merges branches. GitHub rebuilds and tests the tagged commit before publishing.
 Check that the version has not already been published manually in the Marketplace;

@@ -67,16 +67,38 @@ test("release validation accepts stable and prerelease versions with exact metad
   const f = fixture(t);
   for (const version of ["0.1.1", "0.1.1-rc1", "0.1.1-rc.1"]) {
     f.write("editor-extension/package.json", JSON.stringify({ version }));
-    f.write("editor-extension/package-lock.json", JSON.stringify({ version, packages: { "": { version } } }));
+    f.write(
+      "editor-extension/package-lock.json",
+      JSON.stringify({ version, packages: { "": { version } } }),
+    );
     f.write("editor-extension/CHANGELOG.md", `# Changelog\n\n## ${version}\n`);
-    assert.equal(f.run(`extension-v${version}`).status, 0);
+    for (const file of [
+      "plugin.json",
+      ".codex-plugin/plugin.json",
+      ".claude-plugin/plugin.json",
+    ])
+      f.write(file, JSON.stringify({ version }));
+    f.write(
+      ".claude-plugin/marketplace.json",
+      JSON.stringify({
+        metadata: { version },
+        plugins: [{ name: "kanko", version }],
+      }),
+    );
+    assert.equal(f.run(`v${version}`).status, 0, version);
   }
 });
 
 test("release validation rejects malformed versions before accepting release metadata", (t) => {
   const f = fixture(t);
-  for (const version of ["v0.1.1-rc1", "0.01.1", "0.1.1-", "0.1.1-rc..1", "0.1.1-rc.01"]) {
-    f.write("editor-extension/package.json", JSON.stringify({ version }));
+  for (const version of [
+    "v0.1.1-rc1",
+    "0.01.1",
+    "0.1.1-",
+    "0.1.1-rc..1",
+    "0.1.1-rc.01",
+  ]) {
+    f.write("plugin.json", JSON.stringify({ version }));
     const result = f.run();
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /optional SemVer prerelease suffix/);
@@ -179,14 +201,21 @@ test("bump uses SemVer ordering and rejects invalid or non-increasing versions",
     ["minor", "1.3.0"],
     ["major", "2.0.0"],
     ["1.10.0", "1.10.0"],
+    ["2.0.0-rc.1", "2.0.0-rc.1"],
   ])
     assert.equal(nextVersion("1.2.9", bump), expected);
+  assert.equal(nextVersion("1.2.9-rc.1", "1.2.9"), "1.2.9");
+  assert.equal(nextVersion("1.2.9-rc.9", "1.2.9-rc.10"), "1.2.9-rc.10");
+  assert.equal(nextVersion("1.2.9-rc.1", "patch"), "1.2.10");
+  assert.throws(() => nextVersion("1.2.9", "1.2.9-rc.1"));
+  assert.throws(() => nextVersion("1.2.9-rc.10", "1.2.9-rc.9"));
   for (const bump of [
     "1.2.9",
     "1.2.8",
     "0.9.99",
     "v2.0.0",
-    "2.0.0-beta.1",
+    "1.2.9-rc.1",
+    "2.0.0-",
     "02.0.0",
     "2.0.0\n",
     "nope",
@@ -341,7 +370,7 @@ test("Bash release workflow synchronizes versions and tags only clean, current m
     });
   const originalHead = git("rev-parse", "HEAD");
   git("switch", "-c", "feature");
-  assert.match(release("release-check").stderr, /Switch to main/);
+  assert.match(release("release-check").stderr, /cut it from main/);
   git("switch", "main");
   f.write("uncommitted.txt", "dirty");
   assert.match(release("release-check").stderr, /working-tree changes/);
@@ -363,4 +392,44 @@ test("Bash release workflow synchronizes versions and tags only clean, current m
   );
   git("tag", "-d", `v${version}`);
   assert.match(release("release-check").stderr, /Remote tag .* already exists/);
+
+  const notes = (text: string) =>
+    f.write(
+      "editor-extension/CHANGELOG.md",
+      f
+        .read("editor-extension/CHANGELOG.md")
+        .replace("# Changelog", `# Changelog\n\n## Unreleased\n\n- ${text}`),
+    );
+  const commitAll = (branch: string) => {
+    git("add", ".");
+    git("commit", "-qm", "bump");
+    git("push", "origin", branch);
+  };
+  git("switch", "-c", "dev");
+  git("push", "-u", "origin", "dev");
+  notes("Candidate.");
+  assert.equal(run("bump", "99.0.0-rc.1").status, 0);
+  commitAll("dev");
+  const candidate = release("release-check");
+  assert.equal(candidate.status, 0, candidate.stderr);
+  assert.match(candidate.stdout, /Would create and push v99\.0\.0-rc\.1/);
+
+  git("switch", "main");
+  git("merge", "--ff-only", "dev");
+  git("push", "origin", "main");
+  assert.match(
+    release("release-check").stderr,
+    /candidate release; cut it from dev/,
+  );
+
+  notes("Stable.");
+  assert.equal(run("bump", "99.0.0").status, 0);
+  commitAll("main");
+  git("switch", "dev");
+  git("merge", "--ff-only", "main");
+  git("push", "origin", "dev");
+  assert.match(
+    release("release-check").stderr,
+    /stable release; cut it from main/,
+  );
 });
