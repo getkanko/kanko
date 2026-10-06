@@ -21,10 +21,14 @@ type Item<T> = T & {
   status: PositionedNode["status"];
   was?: string;
   sides: GraphSide[];
+  /** The before revision's own data for an id both graphs share. */
+  before?: T;
 };
 export interface UnionGraph {
   nodes: Item<DiagramNode & { placeholder?: boolean }>[];
-  edges: Item<DiagramEdge>[];
+  /** `variant` edges are a before-only route of a shared id whose endpoints
+   * changed; Diff shows only the after route. */
+  edges: Item<DiagramEdge & { variant?: boolean }>[];
   diff: GraphDiff;
 }
 
@@ -47,6 +51,17 @@ export function nodeSize(
   return { width, height };
 }
 
+/** Large enough for whichever revision's text is longer. */
+export function unionSize(node: UnionGraph["nodes"][number]) {
+  const after = nodeSize(node);
+  if (!node.before) return after;
+  const before = nodeSize(node.before);
+  return {
+    width: Math.max(after.width, before.width),
+    height: Math.max(after.height, before.height),
+  };
+}
+
 /** After nodes and edges plus removed before items, with placeholders for
  * streamed edges whose endpoints have not arrived. */
 export function unionGraph(
@@ -54,28 +69,47 @@ export function unionGraph(
   { streaming = false } = {},
 ): UnionGraph {
   const diff = diffGraphs(diagram.before, diagram.after);
-  const beforeNodes = new Set(diagram.before?.nodes.map((n) => n.id));
-  const beforeEdges = new Set(diagram.before?.edges.map((e) => e.id));
-  const sides = (ids: Set<string>, id: string, inAfter: boolean) =>
-    [
-      ...(diagram.before && ids.has(id) ? (["before"] as const) : []),
-      ...(inAfter ? (["after"] as const) : []),
-    ] as GraphSide[];
-  const nodes: UnionGraph["nodes"] = diagram.after.nodes.map((n) => ({
-    ...n,
-    ...(diff.diffable ? diff.nodes[n.id] : { status: "unchanged" as const }),
-    sides: sides(beforeNodes, n.id, true),
-  }));
-  const edges: UnionGraph["edges"] = diagram.after.edges.map((e) => ({
-    ...e,
-    ...(diff.diffable ? diff.edges[e.id] : { status: "unchanged" as const }),
-    sides: sides(beforeEdges, e.id, true),
-  }));
-  if (diff.diffable && diagram.before) {
-    for (const node of diagram.before.nodes)
+  // Without a reliable match there is no Before view, only After.
+  const before = diff.diffable ? diagram.before : undefined;
+  const oldNodes = new Map(before?.nodes.map((n) => [n.id, n]));
+  const oldEdges = new Map(before?.edges.map((e) => [e.id, e]));
+  const status = (
+    entry: { status: PositionedNode["status"]; was?: string } | undefined,
+  ) => (diff.diffable && entry ? entry : { status: "unchanged" as const });
+  const nodes: UnionGraph["nodes"] = diagram.after.nodes.map((n) => {
+    const old = oldNodes.get(n.id);
+    return {
+      ...n,
+      ...status(diff.nodes[n.id]),
+      sides: old ? ["before", "after"] : ["after"],
+      ...(old ? { before: old } : {}),
+    };
+  });
+  const edges: UnionGraph["edges"] = [];
+  for (const e of diagram.after.edges) {
+    const old = oldEdges.get(e.id);
+    const moved = old && (old.from !== e.from || old.to !== e.to);
+    edges.push({
+      ...e,
+      ...status(diff.edges[e.id]),
+      sides: old && !moved ? ["before", "after"] : ["after"],
+      ...(old && !moved ? { before: old } : {}),
+    });
+    // A rerouted edge keeps its old route for the Before view.
+    if (old && moved)
+      edges.push({
+        ...old,
+        id: `${old.id}@before`,
+        status: "changed",
+        sides: ["before"],
+        variant: true,
+      });
+  }
+  if (before) {
+    for (const node of before.nodes)
       if (diff.nodes[node.id]?.status === "removed")
         nodes.push({ ...node, status: "removed", sides: ["before"] });
-    for (const edge of diagram.before.edges)
+    for (const edge of before.edges)
       if (diff.edges[edge.id]?.status === "removed")
         edges.push({ ...edge, status: "removed", sides: ["before"] });
   }
@@ -135,6 +169,10 @@ const link = (
   status: e.status,
   ...(e.was ? { was: e.was } : {}),
   sides: e.sides,
+  ...(e.variant ? { variant: true } : {}),
+  ...(e.before && (e.before.label || "") !== (e.label || "")
+    ? { beforeLabel: e.before.label || "" }
+    : {}),
   points: points.map((p) => ({ x: round(p.x), y: round(p.y) })),
 });
 
@@ -183,7 +221,7 @@ async function layered(
       "elk.padding": "[top=12,left=12,bottom=12,right=12]",
       "elk.randomSeed": "1",
     },
-    children: graph.nodes.map((n) => ({ id: n.id, ...nodeSize(n) })),
+    children: graph.nodes.map((n) => ({ id: n.id, ...unionSize(n) })),
     edges: graph.edges.map((e) => ({
       id: e.id,
       sources: [e.from],

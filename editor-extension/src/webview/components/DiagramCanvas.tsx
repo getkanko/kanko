@@ -6,9 +6,9 @@ import type {
 } from "../../shared/diagram-view.js";
 import {
   highlighted,
+  inMode,
   nodeLabel,
   readingOrder,
-  visible,
   type GraphMode,
 } from "../diagram-model.js";
 
@@ -58,12 +58,10 @@ export function DiagramCanvas({
 }) {
   const ref = useRef<SVGSVGElement>(null);
   const marker = `dg-arrow-${useId().replace(/[^\w-]/g, "")}`;
-  const { nodes: hot, edges: hotEdges } = highlighted(view, beatId);
-  const nodes = readingOrder(visible(view.layout.nodes, mode));
-  const shown = new Set(nodes.map((n) => n.id));
-  const edges = visible(view.layout.edges, mode).filter(
-    (e) => shown.has(e.from) && shown.has(e.to),
-  );
+  const shown = inMode(view, mode);
+  const nodes = readingOrder(shown.nodes);
+  const edges = shown.edges;
+  const { nodes: hot, edges: hotEdges } = highlighted(nodes, edges, beatId);
   const { layout } = view;
   const axis = layout.axis;
   useLayoutEffect(() => {

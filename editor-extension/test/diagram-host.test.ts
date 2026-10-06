@@ -27,6 +27,8 @@ import { createTourController } from "../src/host/tour-controller.js";
 import { createReviewerEvents } from "../src/host/reviewer-events.js";
 import { createDiagramActions } from "../src/host/diagram-actions.js";
 import { DEFAULT_DIAGRAM_SETTINGS } from "../../generated/shared/diagram.js";
+import { createDiagramPanel } from "../src/host/diagram-panel.js";
+import type { HostMessage } from "../src/shared/messages.js";
 
 const auto = DEFAULT_DIAGRAM_SETTINGS;
 
@@ -612,6 +614,18 @@ test("clicking a node moves the presenter pointer locally, activating its beat",
   await actions.node(id, "decide#same-key", after.revision);
   assert.equal((h.controller.snapshot() as LoadedTourSnapshot).beat.id, "key");
   await assert.rejects(actions.node(id, "missing", after.revision), /sketch/);
+  // In Before, a shared node follows its base anchor and before beats (none),
+  // so the tour stays on its beat instead of jumping to the after node's beat.
+  const focusedBefore = h.focused.length;
+  await actions.node(
+    id,
+    "decide#sent",
+    h.controller.snapshot().revision,
+    "before",
+  );
+  const back = h.controller.snapshot() as LoadedTourSnapshot;
+  assert.equal(back.beat.id, "key");
+  assert.equal(record(h.focused[focusedBefore]).anchor, 1);
   // None of this reaches the agent.
   assert.deepEqual(events.pending(), []);
   // Requests, feedback and pins do.
@@ -629,5 +643,67 @@ test("clicking a node moves the presenter pointer locally, activating its beat",
   assert.equal(
     (h.controller.snapshot() as LoadedTourSnapshot).diagrams.collapsed,
     true,
+  );
+});
+
+test("switching diagrams Off closes the expanded panel and clears its view", async (t) => {
+  const h = harness(t);
+  const first = (await h.controller.load(h.body)) as LoadedTourSnapshot;
+  let disposed = 0;
+  let onDispose: () => void = () => {};
+  const notes: HostMessage[] = [];
+  const api = {
+    Uri: { joinPath: (...parts: unknown[]) => parts.join("/") },
+    ViewColumn: { Beside: -2 },
+    commands: { executeCommand: async () => {} },
+    window: {
+      createWebviewPanel: () => ({
+        title: "",
+        iconPath: undefined,
+        webview: {
+          html: "",
+          cspSource: "test:",
+          asWebviewUri: (u: unknown) => u,
+          postMessage: async () => true,
+          onDidReceiveMessage: () => ({ dispose() {} }),
+        },
+        reveal() {},
+        onDidDispose: (fn: () => void) => {
+          onDispose = fn;
+          return { dispose() {} };
+        },
+        dispose() {
+          disposed++;
+          onDispose();
+        },
+      }),
+    },
+  };
+  const panel = createDiagramPanel(
+    api as never,
+    "ext" as never,
+    () => undefined,
+    (m) => notes.push(m),
+  );
+  panel.publish(first);
+  panel.show(first.diagrams.cards[0].id);
+  assert.equal(panel.isOpen(), true);
+  const last = notes.at(-1);
+  assert.equal(
+    last?.type === "panel" && last.view?.id,
+    first.diagrams.cards[0].id,
+  );
+  const off = await h.controller.updateDiagrams(undefined, (d) => ({
+    ...d,
+    settings: { ...d.settings, mode: "off" },
+  }));
+  panel.publish(off);
+  assert.equal(disposed, 1);
+  assert.equal(panel.isOpen(), false);
+  const closed = notes.at(-1);
+  assert.equal(closed?.type === "panel" && closed.view, null);
+  assert.throws(
+    () => panel.show(first.diagrams.cards[0].id),
+    /not on this stop/,
   );
 });

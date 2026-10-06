@@ -2,7 +2,12 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import type { SidebarBridge } from "./bridge.js";
 import type { DiagramView } from "../shared/diagram-view.js";
 import { DiagramCanvas } from "./components/DiagramCanvas.js";
-import { beatStrip, defaultMode, type GraphMode } from "./diagram-model.js";
+import {
+  beatStrip,
+  defaultMode,
+  sideOf,
+  type GraphMode,
+} from "./diagram-model.js";
 
 /** The expanded diagram beside the code: Before/After/Diff, Follow tour, and a
  * beat strip. Panning or clicking the background stops auto-scrolling until
@@ -144,6 +149,9 @@ function Expanded({
               type: "diagramNode",
               diagramId: view.id,
               nodeId: node.id,
+              ...(sideOf(node, mode) === "before"
+                ? { side: "before" as const }
+                : {}),
             });
           }}
         />
