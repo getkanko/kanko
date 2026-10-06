@@ -88,7 +88,7 @@ async function main() {
   async function request(route, body) {
     const result = await (
       await fetch(
-        `http://127.0.0.1:${lock.port}${route}${body ? "" : "?protocolVersion=3"}`,
+        `http://127.0.0.1:${lock.port}${route}${body ? "" : "?protocolVersion=4"}`,
         {
           method: body ? "POST" : "GET",
           headers: {
@@ -100,7 +100,7 @@ async function main() {
                 body: JSON.stringify({
                   ...body,
                   workspace: fixture.workspace,
-                  protocolVersion: 3,
+                  protocolVersion: 4,
                 }),
               }
             : {}),

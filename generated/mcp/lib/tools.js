@@ -2,28 +2,45 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ROUTES =
+  exports.DIAGRAM_TOOLS =
   exports.MAP_TOOLS =
   exports.BRIDGE_TOOLS =
   exports.TOOLS =
     void 0;
 exports.createCallTool = createCallTool;
+exports.mergePatch = mergePatch;
 const input_js_1 = require("./input.js");
 const readers_js_1 = require("./review-map/readers.js");
 const bridge_js_1 = require("./bridge.js");
 const service_js_1 = require("./review-map/service.js");
+const input_js_2 = require("./input.js");
+const diagram_js_1 = require("../../shared/diagram.js");
+const diagram_validate_js_1 = require("../../shared/diagram-validate.js");
 const tourSchema = require("../../schemas/tour-plan.schema.json");
+const diagramSchema = require("../../schemas/diagram.schema.json");
 // Embed schema references so clients need no extra files.
-function inlineTourSchema(value) {
-  if (Array.isArray(value)) return value.map(inlineTourSchema);
+function inlineSchema(value, definitions) {
+  if (Array.isArray(value))
+    return value.map((item) => inlineSchema(item, definitions));
   if (!(0, input_js_1.isRecord)(value)) return value;
   if (typeof value.$ref === "string") {
-    const definitions = tourSchema.$defs;
-    return inlineTourSchema(definitions[value.$ref.split("/").at(-1) || ""]);
+    const target = definitions[value.$ref.split("/").at(-1) || ""];
+    const { $ref: _, ...rest } = value;
+    return {
+      ...inlineSchema(target, definitions),
+      ...inlineSchema(rest, definitions),
+    };
   }
   return Object.fromEntries(
-    Object.entries(value).map(([key, child]) => [key, inlineTourSchema(child)]),
+    Object.entries(value).map(([key, child]) => [
+      key,
+      inlineSchema(child, definitions),
+    ]),
   );
 }
+const inlineTourSchema = (value) => inlineSchema(value, tourSchema.$defs);
+const { $schema: _schema, $id: _id, $defs, ...diagramBody } = diagramSchema;
+const DIAGRAM = inlineSchema(diagramBody, $defs);
 const WORKSPACE = {
   type: "string",
   description:
@@ -391,8 +408,126 @@ const MAP_TOOLS = [
   },
 ];
 exports.MAP_TOOLS = MAP_TOOLS;
-const TOOLS = [...BRIDGE_TOOLS, ...MAP_TOOLS];
+const MAP_ID_ARG = { type: "string", pattern: "^map_[0-9a-f-]+$" };
+const DIAGRAM_TOOLS = [
+  {
+    name: "kanko_diagram_put",
+    description:
+      "Validate a diagram against the review map's pinned sources, store it on its stop, and show it in the editor when a tour is loaded. Rejected when kanko.diagrams.mode forbids it, an automatic diagram exceeds maxPerStop, a derived node lacks an anchor, an anchor does not resolve, or the graph exceeds 40 nodes.",
+    inputSchema: {
+      type: "object",
+      required: ["workspace", "mapId", "diagram"],
+      properties: { workspace: WORKSPACE, mapId: MAP_ID_ARG, diagram: DIAGRAM },
+    },
+  },
+  {
+    name: "kanko_diagram_skip",
+    description:
+      "Record that a stop gets no automatic diagram, with one plain sentence about the change (for example, adds 2 counters and no new control flow). The tour map shows the reason and offers Draw one anyway.",
+    inputSchema: {
+      type: "object",
+      required: ["workspace", "mapId", "stopId", "reason"],
+      properties: {
+        workspace: WORKSPACE,
+        mapId: MAP_ID_ARG,
+        stopId: { type: "string" },
+        reason: { type: "string", maxLength: 300 },
+      },
+    },
+  },
+  {
+    name: "kanko_diagram_stream",
+    description:
+      "Stream a diagram into a detour while answering a reviewer request. Each patch merges metadata and upserts nodes, edges, and lanes by id; send the axis and early nodes first. Unresolved edge endpoints render as placeholders. final: true validates the complete diagram, stores it as requested on its stop (unpinned), and shows its provenance.",
+    inputSchema: {
+      type: "object",
+      required: ["workspace", "mapId", "detourId", "diagramId", "patch"],
+      properties: {
+        workspace: WORKSPACE,
+        mapId: MAP_ID_ARG,
+        detourId: {
+          type: "string",
+          description:
+            "The diagram_request id, or a new id for a question asked in the conversation.",
+        },
+        diagramId: { type: "string", pattern: "^[\\w.:-]{1,64}$" },
+        patch: {
+          type: "object",
+          description:
+            "Any diagram fields plus optional status (a short progress line), question (the reviewer's words), and answer (your plain-text reply). after/before may hold partial nodes, edges, lanes, and axis.",
+        },
+        final: { type: "boolean", default: false },
+      },
+    },
+  },
+  {
+    name: "kanko_diagram_pin",
+    description:
+      "Pin a requested diagram to a stop so future reviewers see it there. The reviewer usually pins from the editor; use this only when the reviewer asks you to.",
+    inputSchema: {
+      type: "object",
+      required: ["workspace", "mapId", "diagramId", "stopId"],
+      properties: {
+        workspace: WORKSPACE,
+        mapId: MAP_ID_ARG,
+        diagramId: { type: "string" },
+        stopId: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "kanko_await_reviewer",
+    description:
+      "Collect reviewer events from the editor: diagram_request (Draw one anyway or Redraw; answer with kanko_diagram_stream), diagram_feedback (Not helpful; do not redraw that stop), and diagram_pinned (already saved to the review map). Waits up to timeoutMs for the first event; 0 returns immediately.",
+    inputSchema: {
+      type: "object",
+      required: ["workspace"],
+      properties: {
+        workspace: WORKSPACE,
+        timeoutMs: { type: "integer", minimum: 0, maximum: 60000, default: 0 },
+      },
+    },
+  },
+];
+exports.DIAGRAM_TOOLS = DIAGRAM_TOOLS;
+const TOOLS = [...BRIDGE_TOOLS, ...MAP_TOOLS, ...DIAGRAM_TOOLS];
 exports.TOOLS = TOOLS;
+const REVIEWER = {
+  kind: "reviewer",
+  id: "editor",
+};
+const object = (value) => ((0, input_js_1.isRecord)(value) ? value : {});
+/** Merge a stream patch: metadata replaces, graph items upsert by id. */
+function mergePatch(draft, patch) {
+  const next = { ...draft };
+  for (const [key, value] of Object.entries(patch)) {
+    if (key === "after" || key === "before") {
+      const graph = {
+        nodes: [],
+        edges: [],
+        ...object(next[key]),
+      };
+      const incoming = object(value);
+      for (const list of ["nodes", "edges", "lanes"]) {
+        if (!Array.isArray(incoming[list])) continue;
+        const items = Array.isArray(graph[list]) ? [...graph[list]] : [];
+        for (const item of incoming[list]) {
+          const id = (0, input_js_1.isRecord)(item) ? item.id : undefined;
+          const at = items.findIndex(
+            (x) => (0, input_js_1.isRecord)(x) && x.id === id,
+          );
+          if (at >= 0) items[at] = item;
+          else items.push(item);
+        }
+        Object.assign(graph, { [list]: items });
+      }
+      if (incoming.axis !== undefined)
+        Object.assign(graph, { axis: incoming.axis });
+      next[key] = graph;
+    } else next[key] = value;
+  }
+  return next;
+}
 const ROUTES = {
   kanko_tour_status: ["GET", "/status"],
   kanko_tour_load: ["POST", "/tour/load"],
@@ -405,7 +540,239 @@ function createCallTool({
   resolveLock,
   mapService = new service_js_1.ReviewMapService(),
 }) {
+  const streams = new Map();
+  const workspaceOf = (args) => {
+    if (typeof args.workspace !== "string")
+      throw Object.assign(new Error("workspace must be a string"), {
+        code: "bad_request",
+      });
+    return args.workspace;
+  };
+  // Editor settings decide when diagrams are allowed; without an editor the
+  // documented defaults apply.
+  async function editorState(workspace) {
+    try {
+      const status = await (0, bridge_js_1.request)(
+        resolveLock(workspace),
+        "GET",
+        "/status",
+        {},
+      );
+      return {
+        settings: (0, diagram_js_1.readDiagramSettings)(status.diagramSettings),
+        snapshot: (0, input_js_1.isRecord)(status.snapshot)
+          ? status.snapshot
+          : null,
+      };
+    } catch {
+      return {
+        settings: (0, diagram_js_1.readDiagramSettings)(undefined),
+        snapshot: null,
+      };
+    }
+  }
+  // Showing a stored diagram is best effort: the review map is the record.
+  async function show(workspace, route, body) {
+    try {
+      await (0, bridge_js_1.request)(resolveLock(workspace), "POST", route, {
+        ...body,
+        workspace,
+      });
+      return { shown: true };
+    } catch (error) {
+      return {
+        shown: false,
+        editor: (0, input_js_2.errorFields)(error).message,
+      };
+    }
+  }
+  async function diagramTool(name, args) {
+    const workspace = workspaceOf(args);
+    if (name === "kanko_await_reviewer") {
+      const timeoutMs =
+        typeof args.timeoutMs === "number"
+          ? Math.max(0, Math.min(60000, args.timeoutMs))
+          : 0;
+      const result = await (0, bridge_js_1.request)(
+        resolveLock(workspace),
+        "POST",
+        "/reviewer/await",
+        {
+          workspace,
+          timeoutMs,
+        },
+      );
+      const events = Array.isArray(result.events) ? result.events : [];
+      const delivered = [];
+      for (const event of events) {
+        if (!(0, input_js_1.isRecord)(event)) continue;
+        const mapId = typeof event.mapId === "string" ? event.mapId : "";
+        try {
+          if (event.kind === "diagram_pin") {
+            mapService.diagramPin(
+              (0, readers_js_1.readMapRequest)("diagramPin", {
+                workspace,
+                mapId,
+                diagramId: event.diagramId,
+                stopId: event.stopId,
+                actor: REVIEWER,
+              }),
+            );
+            delivered.push({ ...event, kind: "diagram_pinned" });
+            continue;
+          }
+          if (event.kind === "diagram_feedback")
+            mapService.diagramFeedback(
+              (0, readers_js_1.readMapRequest)("diagramFeedback", {
+                workspace,
+                mapId,
+                diagramId: event.diagramId,
+                value: event.value,
+                actor: REVIEWER,
+              }),
+            );
+          delivered.push(event);
+        } catch (error) {
+          delivered.push({
+            ...event,
+            persistError: (0, input_js_2.errorFields)(error).message,
+          });
+        }
+      }
+      return { events: delivered };
+    }
+    const { settings, snapshot } = await editorState(workspace);
+    const withSettings = { ...args, settings };
+    if (name === "kanko_diagram_put") {
+      const result = mapService.diagramPut(
+        (0, readers_js_1.readMapRequest)("diagramPut", withSettings),
+      );
+      return {
+        ...result,
+        ...(await show(workspace, "/diagram/put", {
+          tourId: args.mapId,
+          diagram: result.diagram,
+        })),
+      };
+    }
+    if (name === "kanko_diagram_skip") {
+      const result = mapService.diagramSkip(
+        (0, readers_js_1.readMapRequest)("diagramSkip", withSettings),
+      );
+      return {
+        ...result,
+        ...(await show(workspace, "/diagram/skip", {
+          tourId: args.mapId,
+          skip: result.skip,
+        })),
+      };
+    }
+    if (name === "kanko_diagram_pin") {
+      const result = mapService.diagramPin(
+        (0, readers_js_1.readMapRequest)("diagramPin", args),
+      );
+      return {
+        ...result,
+        ...(await show(workspace, "/diagram/pin", {
+          tourId: args.mapId,
+          diagramId: args.diagramId,
+          stopId: args.stopId,
+        })),
+      };
+    }
+    // kanko_diagram_stream
+    if (
+      typeof args.mapId !== "string" ||
+      typeof args.detourId !== "string" ||
+      typeof args.diagramId !== "string" ||
+      !/^[\w.:-]{1,64}$/.test(args.diagramId) ||
+      !(0, input_js_1.isRecord)(args.patch)
+    )
+      throw Object.assign(
+        new Error(
+          "stream requires mapId, detourId, diagramId, and a patch object",
+        ),
+        { code: "bad_request" },
+      );
+    if (settings.mode === "off")
+      throw Object.assign(
+        new Error(
+          "Diagrams are turned off in kanko.diagrams.mode. Answer in text and add one line saying diagrams are off.",
+        ),
+        { code: "diagrams_off" },
+      );
+    const key = `${args.mapId}:${args.diagramId}`;
+    const previous = streams.get(key);
+    const { status, question, answer, ...patch } = args.patch;
+    const stop = (0, input_js_1.isRecord)(snapshot?.stop)
+      ? snapshot.stop.id
+      : undefined;
+    const diagram = mergePatch(
+      previous?.diagram || {
+        origin: "requested",
+        detourId: args.detourId,
+        ...(typeof stop === "string" ? { stopId: stop } : {}),
+      },
+      patch,
+    );
+    const draft = { mapId: args.mapId, detourId: args.detourId, diagram };
+    const text = {
+      ...(typeof status === "string" ? { status } : {}),
+      ...(typeof question === "string" ? { question } : {}),
+      ...(typeof answer === "string" ? { answer } : {}),
+    };
+    if (args.final !== true) {
+      const partial = (0, diagram_validate_js_1.validateDiagram)(diagram, {
+        partial: true,
+      });
+      if (!partial.ok)
+        throw Object.assign(
+          new Error("Fix the streamed diagram's structure."),
+          {
+            code: "invalid_diagram",
+            details: { findings: partial.findings },
+          },
+        );
+      streams.set(key, draft);
+      return {
+        ok: true,
+        final: false,
+        ...(await show(workspace, "/diagram/stream", {
+          tourId: args.mapId,
+          detourId: args.detourId,
+          diagramId: args.diagramId,
+          draft: diagram,
+          ...text,
+          final: false,
+        })),
+      };
+    }
+    const result = mapService.diagramPut(
+      (0, readers_js_1.readMapRequest)("diagramPut", {
+        workspace,
+        mapId: args.mapId,
+        diagram: { ...diagram, detourId: args.detourId },
+        settings: settings,
+      }),
+      { id: args.diagramId },
+    );
+    streams.delete(key);
+    return {
+      ...result,
+      final: true,
+      ...(await show(workspace, "/diagram/stream", {
+        tourId: args.mapId,
+        detourId: args.detourId,
+        diagramId: args.diagramId,
+        diagram: result.diagram,
+        ...text,
+        final: true,
+      })),
+    };
+  }
   return async function callTool(name, args) {
+    if (name.startsWith("kanko_diagram_") || name === "kanko_await_reviewer")
+      return diagramTool(name, args);
     if (name === "kanko_map_open")
       return mapService.open((0, readers_js_1.readMapRequest)("open", args));
     if (name === "kanko_map_get")

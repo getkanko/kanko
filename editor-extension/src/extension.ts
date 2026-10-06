@@ -13,6 +13,18 @@ import { createLayoutState } from "./host/layout-state.js";
 import { createTourHost } from "./host/tour-host.js";
 import { createTourView } from "./host/tour-view.js";
 import { createAnchorQuickPick } from "./host/anchor-quick-pick.js";
+import { createReviewerEvents } from "./host/reviewer-events.js";
+import { createDiagramActions } from "./host/diagram-actions.js";
+import { createDiagramPanel } from "./host/diagram-panel.js";
+import {
+  prepareDiagrams,
+  putDiagram,
+  skipDiagram,
+  pinDiagram,
+  streamDiagram,
+  readStream,
+} from "./host/diagrams.js";
+import { readDiagramSettings } from "../../generated/shared/diagram.js";
 type Controller = ReturnType<typeof createTourController>;
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -36,14 +48,44 @@ export async function activate(context: vscode.ExtensionContext) {
     100,
   );
   status.command = "kanko.tour.focus";
-  const view = createTourView(vscode, context.extensionUri, () => controller);
+  const events = createReviewerEvents(context.workspaceState);
+  const diagramSettings = () => {
+    const config = vscode.workspace.getConfiguration("kanko.diagrams");
+    return readDiagramSettings({
+      mode: config.get("mode"),
+      maxPerStop: config.get("maxPerStop"),
+      derivedOnly: config.get("derivedOnly"),
+      openBeside: config.get("openBeside"),
+    });
+  };
+  const actions = createDiagramActions(
+    vscode,
+    () => controller,
+    events,
+    () => panel,
+  );
+  const view = createTourView(
+    vscode,
+    context.extensionUri,
+    () => controller,
+    () => actions,
+  );
+  const panel = createDiagramPanel(
+    vscode,
+    context.extensionUri,
+    () => actions,
+    (message) => view.post(message),
+  );
   controller = createTourController({
     prepare: host.prepare,
     present: host.present,
     clear: host.clear,
     layoutAction: host.layoutAction,
+    prepareDiagrams: (body, prepared) =>
+      prepareDiagrams(body, prepared.plan, diagramSettings()),
     publish(snapshot: TourSnapshot) {
       view.publish(snapshot);
+      panel.publish(snapshot);
       vscode.commands.executeCommand(
         "setContext",
         "kanko.tourLoaded",
@@ -105,6 +147,7 @@ export async function activate(context: vscode.ExtensionContext) {
           (f) => f.uri.fsPath,
         ),
         snapshot: controller.snapshot(),
+        diagramSettings: diagramSettings(),
       }),
       "POST /tour/load": async (body: unknown) => {
         scope(body);
@@ -126,6 +169,53 @@ export async function activate(context: vscode.ExtensionContext) {
       "POST /clear": async (body: unknown) => {
         scope(body);
         return { snapshot: await controller.clear() };
+      },
+      "POST /diagram/put": async (body: unknown) => {
+        scope(body);
+        return {
+          snapshot: await controller.updateDiagrams(body.tourId, (d, state) =>
+            putDiagram(d, state.plan, body.diagram),
+          ),
+        };
+      },
+      "POST /diagram/skip": async (body: unknown) => {
+        scope(body);
+        return {
+          snapshot: await controller.updateDiagrams(body.tourId, (d, state) =>
+            skipDiagram(d, state.plan, body.skip),
+          ),
+        };
+      },
+      "POST /diagram/pin": async (body: unknown) => {
+        scope(body);
+        return {
+          snapshot: await controller.updateDiagrams(body.tourId, (d, state) =>
+            pinDiagram(d, state.plan, body.diagramId, body.stopId),
+          ),
+        };
+      },
+      "POST /diagram/stream": async (body: unknown) => {
+        scope(body);
+        const message = readStream(body);
+        const snapshot = await controller.updateDiagrams(
+          body.tourId,
+          (d, state) =>
+            streamDiagram(
+              d,
+              state.plan,
+              state.plan.stops[state.stopIndex].id,
+              message,
+            ),
+        );
+        await vscode.commands.executeCommand("kanko.tour.focus");
+        return { snapshot };
+      },
+      "POST /reviewer/await": async (body: unknown) => {
+        scope(body);
+        const timeout = Number(body.timeoutMs) || 0;
+        return {
+          events: await events.take(Math.max(0, Math.min(60000, timeout))),
+        };
       },
     },
   });
@@ -221,6 +311,23 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("kanko.tour.resetLayout", () =>
       controller.layout({ action: "reset" }),
     ),
+    vscode.commands.registerCommand("kanko.diagram.openBeside", () => {
+      const snapshot = controller.snapshot();
+      const first = snapshot.loaded ? snapshot.diagrams.cards[0] : undefined;
+      if (first) return actions.open(first.id);
+      return vscode.window.showInformationMessage("This stop has no diagram.");
+    }),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("kanko.diagrams"))
+        controller
+          .updateDiagrams(undefined, (d) => ({
+            ...d,
+            settings: diagramSettings(),
+          }))
+          .catch(() => {});
+    }),
+    panel,
+    events,
     quickPick,
     status,
     host,

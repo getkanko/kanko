@@ -176,7 +176,11 @@ test("bump synchronizes distributable metadata and runtime without changing depe
     path.join(f.root, "editor-extension/node_modules"),
     "dir",
   );
-  const originalNotes = f.read("editor-extension/CHANGELOG.md");
+  // Start from released notes only, even when the checkout stages some.
+  const originalNotes = f
+    .read("editor-extension/CHANGELOG.md")
+    .replace(/^## Unreleased\r?\n[\s\S]*?(?=^## )/m, "");
+  f.write("editor-extension/CHANGELOG.md", originalNotes);
   const lock = record(JSON.parse(f.read("editor-extension/package-lock.json")));
   const run = (...args: string[]) =>
     spawnSync(

@@ -92,6 +92,19 @@ function snapshot(
       '<p>Inspect <button class="chip color-1" data-anchor="1" aria-label="Inspect source one">1</button> &lt;img src=x onerror=alert(1)&gt;</p>',
     narration: "Inspect source one",
     receiptNarration: "Inspect source one",
+    diagrams: {
+      settings: {
+        mode: "auto",
+        maxPerStop: 1,
+        derivedOnly: false,
+        openBeside: "ask",
+      },
+      cards: [],
+      collapsed: false,
+      pending: false,
+      tourMap: [],
+      redrawAt: "123456a",
+    },
     ...overrides,
   };
 }

@@ -8,7 +8,7 @@ exports.ROUTES =
   exports.ERROR_CODES =
   exports.PROTOCOL_VERSION =
     void 0;
-const PROTOCOL_VERSION = 3;
+const PROTOCOL_VERSION = 4;
 exports.PROTOCOL_VERSION = PROTOCOL_VERSION;
 const ERROR_CODES = [
   "unauthorized",
@@ -44,5 +44,10 @@ const ROUTES = {
   kanko_tour_navigate: { method: "POST", path: "/tour/navigate" },
   kanko_tour_set_state: { method: "POST", path: "/tour/state" },
   kanko_tour_clear: { method: "POST", path: "/clear" },
+  kanko_diagram_put: { method: "POST", path: "/diagram/put" },
+  kanko_diagram_skip: { method: "POST", path: "/diagram/skip" },
+  kanko_diagram_stream: { method: "POST", path: "/diagram/stream" },
+  kanko_diagram_pin: { method: "POST", path: "/diagram/pin" },
+  kanko_await_reviewer: { method: "POST", path: "/reviewer/await" },
 };
 exports.ROUTES = ROUTES;

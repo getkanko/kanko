@@ -319,6 +319,39 @@ const payloadChecks = {
   DriftDetected: isRecord,
   ReceiptEmitted: object({ receiptRef }),
   ReviewMapArchived: isRecord,
+  DiagramAdded: object({
+    diagram: object({
+      id: string,
+      kind: string,
+      title: string,
+      stopId: string,
+      origin: oneOf("auto", "requested"),
+      reason: string,
+      provenance: object({
+        status: oneOf("derived", "inferred"),
+        method: string,
+        sources: array(isRecord),
+        revs: object({ after: string, before: optional(string) }),
+      }),
+      before: optional(
+        object({ nodes: array(isRecord), edges: array(isRecord) }),
+      ),
+      after: object({ nodes: array(isRecord), edges: array(isRecord) }),
+      pinned: boolean,
+      sourceHash: string,
+      createdAt: string,
+      replaces: optional(string),
+      detourId: optional(string),
+    }),
+  }),
+  DiagramSkipped: object({
+    skip: object({ stopId: string, reason: string, recordedAt: string }),
+  }),
+  DiagramPinned: object({ diagramId: string, stopId: string }),
+  DiagramFeedbackRecorded: object({
+    diagramId: string,
+    value: oneOf("not_helpful"),
+  }),
 } satisfies Record<keyof Payloads, Check>;
 
 export function validateEventPayload(value: unknown): void {
@@ -495,6 +528,14 @@ export function readMapRequest<
       supersedesReceiptId: optional(string),
     });
   if (method === "delete") fields.confirmMapId = string;
+  if (method.startsWith("diagram")) fields.actor = optional(actor);
+  if (method === "diagramPut") fields.diagram = isRecord;
+  if (method === "diagramSkip")
+    Object.assign(fields, { stopId: string, reason: string });
+  if (method === "diagramPin")
+    Object.assign(fields, { diagramId: string, stopId: string });
+  if (method === "diagramFeedback")
+    Object.assign(fields, { diagramId: string, value: oneOf("not_helpful") });
   invariant(
     object(fields)(value),
     "bad_request",

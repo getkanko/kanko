@@ -34,6 +34,14 @@ export const valid: SidebarMessage[] = [
   { type: "sequenceOverride", revision: 3 },
   { type: "quickPick", revision: 3 },
   { type: "clear" },
+  { type: "diagramNode", diagramId: "dgm_1", nodeId: "key", revision: 3 },
+  { type: "gotoBeat", stopId: "K02", beatId: "b2", revision: 3 },
+  { type: "diagramOpen", diagramId: "dgm_1" },
+  { type: "diagramRequest", stopId: "K05" },
+  { type: "diagramRequest", stopId: "K02", replaces: "dgm_1", revision: 3 },
+  { type: "diagramPin", diagramId: "dgm_2", stopId: "K03" },
+  { type: "diagramSettings", settings: { mode: "onRequest" } },
+  { type: "panelFollow", follow: false },
 ];
 
 export const invalid: SidebarMessage[] = [
@@ -53,6 +61,10 @@ export const invalid: SidebarMessage[] = [
   { type: "focus", revision: 1 },
   // @ts-expect-error Unknown message type.
   { type: "reload" },
+  // @ts-expect-error A node click can move the editor, so it needs a revision.
+  { type: "diagramNode", diagramId: "dgm_1", nodeId: "key" },
+  // @ts-expect-error Settings use the declared modes.
+  { type: "diagramSettings", settings: { mode: "sometimes" } },
 ];
 
 export const placements: PlacementChoice[] = [
@@ -82,6 +94,8 @@ export function describe(message: HostMessage): string {
       return `anchor ${message.anchor}`;
     case "error":
       return message.message;
+    case "panel":
+      return message.view?.tabTitle || "no diagram";
     default: {
       const unhandled: never = message;
       return unhandled;

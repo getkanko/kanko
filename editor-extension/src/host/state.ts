@@ -11,6 +11,7 @@ import type {
   RemovedCodeDisplay,
 } from "../shared/snapshot.js";
 import type { Hunk } from "./hunks.js";
+import type { DiagramState } from "./diagrams.js";
 
 export interface PreparedTour {
   tourId: string;
@@ -27,6 +28,7 @@ export interface TourState extends PreparedTour {
   mode: PresentationMode;
   selectedAnchor: number | null;
   presentation?: PresentationSnapshot;
+  diagrams?: DiagramState;
 }
 export interface AnchorRecord {
   anchor: TourAnchor;

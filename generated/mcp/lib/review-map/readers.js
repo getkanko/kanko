@@ -303,6 +303,45 @@ const payloadChecks = {
   DriftDetected: input_js_1.isRecord,
   ReceiptEmitted: object({ receiptRef }),
   ReviewMapArchived: input_js_1.isRecord,
+  DiagramAdded: object({
+    diagram: object({
+      id: string,
+      kind: string,
+      title: string,
+      stopId: string,
+      origin: oneOf("auto", "requested"),
+      reason: string,
+      provenance: object({
+        status: oneOf("derived", "inferred"),
+        method: string,
+        sources: array(input_js_1.isRecord),
+        revs: object({ after: string, before: optional(string) }),
+      }),
+      before: optional(
+        object({
+          nodes: array(input_js_1.isRecord),
+          edges: array(input_js_1.isRecord),
+        }),
+      ),
+      after: object({
+        nodes: array(input_js_1.isRecord),
+        edges: array(input_js_1.isRecord),
+      }),
+      pinned: boolean,
+      sourceHash: string,
+      createdAt: string,
+      replaces: optional(string),
+      detourId: optional(string),
+    }),
+  }),
+  DiagramSkipped: object({
+    skip: object({ stopId: string, reason: string, recordedAt: string }),
+  }),
+  DiagramPinned: object({ diagramId: string, stopId: string }),
+  DiagramFeedbackRecorded: object({
+    diagramId: string,
+    value: oneOf("not_helpful"),
+  }),
 };
 function validateEventPayload(value) {
   (0, errors_js_1.invariant)(
@@ -481,6 +520,14 @@ function readMapRequest(method, value) {
       supersedesReceiptId: optional(string),
     });
   if (method === "delete") fields.confirmMapId = string;
+  if (method.startsWith("diagram")) fields.actor = optional(actor);
+  if (method === "diagramPut") fields.diagram = input_js_1.isRecord;
+  if (method === "diagramSkip")
+    Object.assign(fields, { stopId: string, reason: string });
+  if (method === "diagramPin")
+    Object.assign(fields, { diagramId: string, stopId: string });
+  if (method === "diagramFeedback")
+    Object.assign(fields, { diagramId: string, value: oneOf("not_helpful") });
   (0, errors_js_1.invariant)(
     object(fields)(value),
     "bad_request",

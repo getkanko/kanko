@@ -4,8 +4,8 @@ import * as assert from "node:assert";
 import * as protocol from "../generated/shared/protocol.js";
 import fixtures = require("../contract/fixtures.json");
 
-test("the protocol version is 3", () => {
-  assert.strictEqual(protocol.PROTOCOL_VERSION, 3);
+test("the protocol version is 4", () => {
+  assert.strictEqual(protocol.PROTOCOL_VERSION, 4);
 });
 
 test("every documented error code is declared exactly once", () => {

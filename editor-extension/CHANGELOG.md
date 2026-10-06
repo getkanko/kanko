@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Show agent-drawn diagrams (flow, sequence, state, data flow, timeline) under
+  the beat narration, highlighted by beat and linked node by node to code.
+- Open a diagram beside the code with Before, After, and Diff views, Follow
+  tour, and a beat strip.
+- Stream requested diagrams into a detour; pin them to a stop for future
+  reviewers.
+- Mark diagrams derived, inferred, or stale; describe any diagram as text.
+- Add `kanko.diagrams.mode`, `maxPerStop`, `derivedOnly`, and `openBeside`,
+  and the `kanko.attention` color.
+- Bridge protocol 4 adds diagram and reviewer-event endpoints.
+
 ## 0.1.1
 
 - Compile the extension and MCP runtime from TypeScript, with a React tour sidebar.
