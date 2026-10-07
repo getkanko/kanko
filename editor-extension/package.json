@@ -11,6 +11,7 @@
     "directory": "editor-extension"
   },
   "engines": {
+    "node": ">=22.22.2",
     "vscode": "^1.139.0"
   },
   "categories": [
