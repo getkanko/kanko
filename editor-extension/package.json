@@ -560,7 +560,7 @@
     "esbuild": "0.28.2",
     "jsdom": "30.1.1",
     "prettier": "3.9.9",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   },
   "scripts": {
     "test:unit": "npm run build:test && node --test --test-concurrency=4 .test-dist/checks/editor-extension/test/*.test.js test/*.test.js",
