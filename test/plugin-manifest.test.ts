@@ -20,6 +20,19 @@ test("plugin.json name matches the marketplace entry", () => {
   assert.strictEqual(readJson(".claude-plugin/plugin.json").name, "kanko");
 });
 
+// Claude Code reads neither the portable mcp.json nor ${PLUGIN_ROOT}.
+test("Claude Code manifest registers the MCP server", () => {
+  const plugin = readJson(".claude-plugin/plugin.json");
+  assert.deepStrictEqual(record(plugin.mcpServers)["kanko"], {
+    command: "node",
+    args: ["${CLAUDE_PLUGIN_ROOT}/mcp/server.js"],
+  });
+  assert.ok(
+    !fs.existsSync(path.join(root, ".mcp.json")),
+    ".mcp.json would also be read by Codex and register the server twice",
+  );
+});
+
 test("Codex uses a portable manifest and MCP configuration", () => {
   const plugin = readJson("plugin.json");
   const mcp = readJson("mcp.json");
