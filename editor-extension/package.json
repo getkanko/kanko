@@ -559,7 +559,7 @@
     "@vscode/vsce": "4.0.0",
     "esbuild": "0.28.2",
     "jsdom": "30.1.1",
-    "prettier": "3.9.9",
+    "prettier": "3.9.10",
     "typescript": "5.9.3"
   },
   "scripts": {
